@@ -58,7 +58,7 @@ print(df.head(5)) # Use print() so you can see it in the script output
 #Drop duplicates 
 df=df.drop_duplicates().reset_index(drop=True)
 #Remove leakage columns
-df.drop(columns=["aqi_change","aqi_pct_change","target_aqi_24h"],inplace=True)
+df.drop(columns=["aqi_change","aqi_pct_change","date_time","target_aqi_24h"],inplace=True)
 
 df.columns
 
@@ -231,3 +231,4 @@ if os.path.exists(upload_file):
 print(f"✅ Local model saved to: {local_model_path}")
 
 print(f"✅ Scaler saved to: scaler.pkl")
+
