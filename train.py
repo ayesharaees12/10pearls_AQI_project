@@ -45,7 +45,7 @@ fg = fs.get_feature_group(
 )
 
 # Read the data
-df = fg.read()
+df = fg.read(read_options={"use_hive":True})
 
 # CRITICAL FIX: Ensure data is sorted by time for Time Series training
 # Replace 'datetime' with your actual date column name if it's different
@@ -229,4 +229,5 @@ if os.path.exists(upload_file):
     os.remove(upload_file)
 
 print(f"✅ Local model saved to: {local_model_path}")
+
 print(f"✅ Scaler saved to: scaler.pkl")
