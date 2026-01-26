@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  train-and-update:  # <--- This must be indented 2 spaces
+  train-and-update:
     runs-on: ubuntu-latest
     
     steps:
@@ -26,4 +26,4 @@ jobs:
         env:
           HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
           AQI_API_KEY: ${{ secrets.AQI_API_KEY }}
-        run: python train.py  # <--- This must be aligned with 'env:'
+        run: python train.py
