@@ -1,39 +1,29 @@
 name: Daily Model Retraining
 
-# Trigger: Runs at 12:00 AM UTC every day OR manually via button
 on:
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
 
 jobs:
-  train-and-update:
+  train-and-update:  # <--- This must be indented 2 spaces
     runs-on: ubuntu-latest
     
     steps:
-      # 1. Get the latest code from your repo
       - name: Checkout Repo
         uses: actions/checkout@v3
 
-      # 2. Install Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      # 3. Install Libraries (from your requirements.txt)
       - name: Install Dependencies
         run: |
           pip install -r requirements.txt
 
-      # 4. Run the Training Script
       - name: Run Training Pipeline
         env:
           HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
           AQI_API_KEY: ${{ secrets.AQI_API_KEY }}
-        run: python train.py
-          
-        run: python train.py  # <--- Make sure this matches your filename!
-        env:
-          HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
-        run: python your_training_script.py
+        run: python train.py  # <--- This must be aligned with 'env:'
