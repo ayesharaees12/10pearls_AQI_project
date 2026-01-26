@@ -1,0 +1,13 @@
+hopsworks>=3.0
+pandas
+numpy
+scikit-learn
+xgboost
+joblib
+matplotlib
+seaborn
+python-dotenv
+requests
+joblib 
+tensorflow
+pyarrow
