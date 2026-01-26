@@ -3,11 +3,13 @@ pandas
 numpy
 scikit-learn
 xgboost
+lightgbm
 joblib
 matplotlib
 seaborn
 python-dotenv
 requests
-joblib 
 tensorflow
+streamlit
 pyarrow
+shap
