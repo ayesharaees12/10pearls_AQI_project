@@ -17,20 +17,25 @@ fg = fs.get_feature_group(name="karachi_aqi_features", version=7)
 API_KEY = os.getenv("AQI_API_KEY")
 LAT, LON = 24.8607, 67.0011
 
+import pandas as pd
+import requests
+
 def get_weather_data():
-    # ... (Your logic to get 'temp', 'humidity', 'pm2_5', etc.) ...
-    # This must return a DataFrame with the exact same columns as your Feature Group
-    # Example:
-    url = f"http://api.openweathermap.org/data/2.5/air_pollution?lat={LAT}&lon={LON}&appid={API_KEY}"
-    res = requests.get(url).json()
-    # ... process JSON into a pandas DataFrame (df) ...
+    api_key = os.getenv('AQI_API_KEY')
+    url = f"http://api.openweathermap.org/data/2.5/air_pollution?lat=24.86&lon=67.00&appid={api_key}"
+    
+    response = requests.get(url)
+    data = response.json()
+    
+    # 1. Create the 'df' variable
+    # This extracts the data from the OpenWeather JSON structure
+    df = pd.DataFrame(data['list']) 
+    
+    # 2. Extract specific components (example)
+    df['aqi'] = df['main'].apply(lambda x: x['aqi'])
+    df['datetime'] = pd.to_datetime(df['dt'], unit='s')
+    
+    # Now 'df' exists and can be returned added to Hopsworks!")
     return df
-
-new_data_df = get_weather_data()
-
-# 3. Insert into Feature Store
-if not new_data_df.empty:
-    fg.insert(new_data_df)
-    print("✅ Success: New data uploaded to Hopsworks!")
 else:
     print("⚠ Warning: No data fetched.")
