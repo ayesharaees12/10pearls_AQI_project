@@ -37,5 +37,4 @@ def get_weather_data():
     
     # Now 'df' exists and can be returned added to Hopsworks!")
     return df
-else:
-    print("⚠ Warning: No data fetched.")
+
