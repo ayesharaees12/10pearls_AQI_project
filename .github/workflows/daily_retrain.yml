@@ -23,11 +23,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Debug - List Files
-        run: ls -R  # This will print every file and folder in the log
-
       - name: Run Feature Pipeline Script
         env: 
           HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
           AQI_API_KEY: ${{ secrets.AQI_API_KEY }}
-        run: python feature_pipeline.py
+        # GitHub starts in the root, so you must point to the folder
+        run: python src/feature_pipeline.py
