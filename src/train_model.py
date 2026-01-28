@@ -60,7 +60,7 @@ print("⏳ Fetching training data via Feature View...")
 
 # feature_view.get_batch_data() uses a different internal path 
 # than fg.read(), bypassing the specific Binder Error you are seeing.
-df = feature_view.get_batch_data()
+# df = feature_view.get_batch_data()
 
 # Read the data
 
