@@ -17,9 +17,6 @@ fg = fs.get_feature_group(name="karachi_aqi_features", version=7)
 API_KEY = os.getenv("AQI_API_KEY")
 LAT, LON = 24.8607, 67.0011
 
-import pandas as pd
-import requests
-
 def get_weather_data():
     api_key = os.getenv('AQI_API_KEY')
     url = f"http://api.openweathermap.org/data/2.5/air_pollution?lat=24.86&lon=67.00&appid={api_key}"
@@ -27,14 +24,24 @@ def get_weather_data():
     response = requests.get(url)
     data = response.json()
     
-    # 1. Create the 'df' variable
-    # This extracts the data from the OpenWeather JSON structure
-    df = pd.DataFrame(data['list']) 
+    # Extract data
+    raw_list = data.get('list', [])
+    if not raw_list:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(raw_list)
     
-    # 2. Extract specific components (example)
+    # Flatten components (pm2_5, no2, etc.)
+    components = pd.json_normalize(df['components'])
+    df = pd.concat([df, components], axis=1)
+    
+    # Create human-readable aqi and datetime
     df['aqi'] = df['main'].apply(lambda x: x['aqi'])
+    # Crucial: Convert to datetime object for Hopsworks Event Time
     df['datetime'] = pd.to_datetime(df['dt'], unit='s')
     
-    # Now 'df' exists and can be returned added to Hopsworks!")
+    # Cleanup: Drop nested columns that cause issues in Feature Stores
+    df = df.drop(columns=['main', 'components', 'dt'])
+    
     return df
 
