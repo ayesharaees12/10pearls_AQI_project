@@ -45,7 +45,7 @@ fg = fs.get_feature_group(
 )
 
 # Read the data
-df = fg.read(read_options={"use_hive":True})
+df = fg.read(read_options={"use_hive":True,"arrow_flight":False})
 
 # CRITICAL FIX: Ensure data is sorted by time for Time Series training
 # Replace 'datetime' with your actual date column name if it's different
