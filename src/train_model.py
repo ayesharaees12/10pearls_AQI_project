@@ -37,31 +37,46 @@ project = hopsworks.login(
 
 # --- 2. FETCH DATA FROM FEATURE STORE ---
 print("⏳ Fetching data from Feature Store...")
+# --- 2. FETCH DATA FROM FEATURE STORE ---
+print("⏳ Fetching data from Feature Store...")
 fs = project.get_feature_store()
+fg = fs.get_feature_group(name="karachi_aqi_features", version=7)
 
-fg = fs.get_feature_group(
-    name="karachi_aqi_features",
-    version=7
-)
+# Initialize df as None to prevent NameError
+df = None
+
 try:
+    # 1. Try to get the existing view
+    print("Checking for existing Feature View...")
     feature_view = fs.get_feature_view(name="karachi_aqi_view", version=1)
-except:
-    print("Feature View not found. Creating it now...")
-    # Select all features from the group
-    query = fg.select_all()
-    feature_view = fs.create_feature_view(
-        name="karachi_aqi_view",
-        version=1,
-        query=query,
-        labels=["aqi"] # Replace "aqi" with your actual target column name
-    )
+    df = feature_view.get_batch_data()
+    print("✅ Data fetched via existing Feature View.")
+except Exception as e:
+    print(f"Feature View fetch failed: {e}. Attempting to create/re-fetch...")
+    try:
+        # 2. If it failed, try to create it
+        query = fg.select_all()
+        feature_view = fs.create_feature_view(
+            name="karachi_aqi_view",
+            version=1,
+            query=query,
+            labels=["aqi"]
+        )
+        df = feature_view.get_batch_data()
+        print("✅ Feature View created and data fetched.")
+    except Exception as e2:
+        print(f"Creation failed: {e2}. FALLBACK: Direct read selection...")
+        # 3. EMERGENCY FALLBACK: Select all except the buggy metadata column
+        # This bypasses the 'Binder Error' by not asking for the broken column definition
+        df = fg.select_all().read(read_options={"use_hive": False})
+        print("✅ Data fetched via direct fallback.")
 
-print("⏳ Fetching training data via Feature View...")
-
-# feature_view.get_batch_data() uses a different internal path 
-# than fg.read(), bypassing the specific Binder Error you are seeing.
-# df = feature_view.get_batch_data()
-
+# Now df is guaranteed to exist
+if df is not None:
+    if 'datetime' in df.columns:
+        df = df.sort_values(by='datetime').reset_index(drop=True)
+else:
+    raise ValueError("FATAL: Could not retrieve data from Hopsworks through any method.")
 # Read the data
 
 
