@@ -1,4 +1,4 @@
-name: Daily Model Retraining
+name: Daily Future Pipeine
 
 on:
   schedule:
