@@ -43,9 +43,27 @@ fg = fs.get_feature_group(
     name="karachi_aqi_features",
     version=7
 )
+try:
+    feature_view = fs.get_feature_view(name="karachi_aqi_view", version=1)
+except:
+    print("Feature View not found. Creating it now...")
+    # Select all features from the group
+    query = fg.select_all()
+    feature_view = fs.create_feature_view(
+        name="karachi_aqi_view",
+        version=1,
+        query=query,
+        labels=["aqi"] # Replace "aqi" with your actual target column name
+    )
+
+print("⏳ Fetching training data via Feature View...")
+
+# feature_view.get_batch_data() uses a different internal path 
+# than fg.read(), bypassing the specific Binder Error you are seeing.
+df = feature_view.get_batch_data()
 
 # Read the data
-df = fg.read(read_options={"use_hive":False})
+
 
 # CRITICAL FIX: Ensure data is sorted by time for Time Series training
 # Replace 'datetime' with your actual date column name if it's different
