@@ -88,23 +88,23 @@ if __name__ == "__main__":
             print(f"History read warning: {e}")
             history_df = pd.DataFrame()
 
-        # --- C. THE PERMANENT FIX: Universal DateTime Sanitizer ---
-        # This block forces both dataframes to have the exact same time format (Naive UTC)
-        # It prevents the 'Dimension 1' error by rebuilding the columns from scratch.
+        # --- C. NUCLEAR FIX: Force Clean Slate ---
         if not history_df.empty:
-            # 1. Reset Index to be safe
+            # 1. Reset Indexes (Fixes mismatched index shapes)
             history_df = history_df.reset_index(drop=True)
-            
-            # 2. Filter columns FIRST to avoid shape mismatches
+            new_data_df = new_data_df.reset_index(drop=True)
+
+            # 2. Filter Columns (Ensures exact same columns)
             relevant_cols = new_data_df.columns.tolist()
             history_df = history_df[relevant_cols]
-            
-            # 3. Force History to Naive UTC
-            history_df['datetime'] = pd.to_datetime(history_df['datetime'], utc=True).dt.tz_localize(None)
 
-        # 4. Force New Data to Naive UTC (Matches History)
-        new_data_df['datetime'] = pd.to_datetime(new_data_df['datetime'], utc=True).dt.tz_localize(None)
-        # ------------------------------------------------------------
+            # 3. Convert Datetime to STRING first (Kills Timezone Metadata)
+            history_df['datetime'] = history_df['datetime'].astype(str)
+            new_data_df['datetime'] = new_data_df['datetime'].astype(str)
+            
+            # 4. Convert back to Datetime (Rebuilds cleanly)
+            history_df['datetime'] = pd.to_datetime(history_df['datetime'])
+            new_data_df['datetime'] = pd.to_datetime(new_data_df['datetime'])
 
         # D. Stitch
         if not history_df.empty:
