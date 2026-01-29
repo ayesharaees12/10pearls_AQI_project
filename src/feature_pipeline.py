@@ -44,4 +44,16 @@ def get_weather_data():
     df = df.drop(columns=['main', 'components', 'dt'])
     
     return df
+if __name__ == "__main__":
+    df = get_weather_data()
+    
+    if df.empty:
+        print("No data fetched. Skipping insert.")
+    else:
+        fg.insert(
+            df,
+            write_options={"wait_for_job": True}
+        )
+        print(f"Inserted {len(df)} rows into feature store")
+
 
