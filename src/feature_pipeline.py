@@ -31,37 +31,26 @@ def get_weather_data():
     poll_data = poll_res['list'][0]
     comps = poll_data['components']
     
-    # Get Time
     current_dt = pd.to_datetime(poll_data['dt'], unit='s')
 
     row = {
         'datetime': current_dt,
-        
-        # --- FIX: Force Integers (Whole Numbers) for strict columns ---
-        'aqi': int(poll_data['main']['aqi']),         # Was float, now int
-        'humidity': int(weath_res['main']['humidity']), # Was float, now int
-        
-        # Pollutants (Keep as floats, decimals are needed)
+        'aqi': int(poll_data['main']['aqi']),
+        'humidity': int(weath_res['main']['humidity']),
         'pm2_5': float(comps['pm2_5']),
         'pm10': float(comps['pm10']),
         'nitrogen_dioxide': float(comps['no2']),
         'ozone': float(comps['o3']),
         'sulphor_dioxide': float(comps['so2']),
         'carbon_monooxide': float(comps['co']),
-        
-        # Weather (Temp & Wind need decimals)
         'temp_c': float(weath_res['main']['temp']),
         'wind_speed_kph': float(weath_res['wind']['speed'] * 3.6),
         'precipitation_mm': float(weath_res.get('rain', {}).get('1h', 0.0)),
-        
-        # --- FIX: Force Integers for Date Features ---
         'year': int(current_dt.year),
         'month': int(current_dt.month),
         'day': int(current_dt.day),
         'hour': int(current_dt.hour),
-        'day_of_week': int(current_dt.dayofweek),     # Was double, now int
-        
-        # Derived Features
+        'day_of_week': int(current_dt.dayofweek),
         'temp_humid_interaction': float(weath_res['main']['temp'] * weath_res['main']['humidity']),
         'wind_pollution_interaction': float((weath_res['wind']['speed'] * 3.6) * comps['pm2_5'])
     }
@@ -97,7 +86,7 @@ if __name__ == "__main__":
             print(f"History read warning: {e}")
             history_df = pd.DataFrame()
 
-        # --- C. THE INTEGER BYPASS (Safe Merge) ---
+        # C. THE INTEGER BYPASS (Safe Merge)
         if not history_df.empty:
             history_df = history_df.reset_index(drop=True)
             new_data_df = new_data_df.reset_index(drop=True)
@@ -106,7 +95,6 @@ if __name__ == "__main__":
             history_df = history_df[common_cols]
             new_data_df = new_data_df[common_cols]
 
-            # Convert to Int64 for safe merging
             history_df['datetime'] = pd.to_datetime(history_df['datetime']).astype('int64')
             new_data_df['datetime'] = pd.to_datetime(new_data_df['datetime']).astype('int64')
 
@@ -123,8 +111,21 @@ if __name__ == "__main__":
         # F. Calculate & Upload
         print("Calculating Features...")
         processed_df = calculate_advanced_features(combined_df)
-        upload_df = processed_df.tail(1)
+        
+        # Get only the last row (the new one)
+        upload_df = processed_df.tail(1).copy() # Use .copy() to avoid warnings
 
+        # ### FINAL SAFETY CAST (The Permanent Fix) ###
+        # This forces the types to match Hopsworks Schema exactly right before upload.
+        print("Applying final type checks...")
+        upload_df['day_of_week'] = upload_df['day_of_week'].astype(int)
+        upload_df['aqi'] = upload_df['aqi'].astype(int)
+        upload_df['humidity'] = upload_df['humidity'].astype(int)
+        upload_df['year'] = upload_df['year'].astype(int)
+        upload_df['month'] = upload_df['month'].astype(int)
+        upload_df['day'] = upload_df['day'].astype(int)
+        upload_df['hour'] = upload_df['hour'].astype(int)
+        
         print(f"Uploading row. AQI: {upload_df['aqi'].values[0]}")
         
         fg.insert(
