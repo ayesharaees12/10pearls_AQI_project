@@ -7,6 +7,7 @@ import shap
 import matplotlib.pyplot as plt 
 import warnings
 import json
+import shutil # Added for file operations
 
 # Machine Learning Libraries
 import tensorflow as tf 
@@ -24,9 +25,7 @@ warnings.filterwarnings('ignore')
 
 def train_model():
     # --- 1. SECURE LOGIN ---
-    # We use os.getenv so it works on GitHub Actions (Secrets) AND locally (if set)
     api_key = os.getenv("HOPSWORKS_API_KEY")
-    
     project = hopsworks.login(
         api_key_value=api_key,
         project="aqi_quality_fs"
@@ -39,29 +38,21 @@ def train_model():
     
     df = fg.read()
 
-    # Sort by time for Time Series training
     if 'datetime' in df.columns:
         df = df.sort_values(by='datetime').reset_index(drop=True)
 
-    # Drop duplicates
     df = df.drop_duplicates().reset_index(drop=True)
     
-    # Remove leakage/unnecessary columns
-    # We keep 'aqi' as the target 'y'
     cols_to_drop = ["aqi_change", "aqi_pct_change", "target_aqi_24h", "datetime"]
     df_clean = df.drop(columns=[c for c in cols_to_drop if c in df.columns], errors='ignore')
-
-    # Handle NaNs (Interpolate is better for time series, but fillna(0) is safe)
     df_clean = df_clean.fillna(0)
 
-    # Define X and y
     y = df_clean['aqi']
     X = df_clean.drop(columns=['aqi'])
 
     print(f"✅ Data Loaded. Shape: {X.shape}")
 
     # --- 3. SPLIT & NORMALIZE ---
-    # Time-based Split (80% train, 20% test)
     split_index = int(len(df_clean) * 0.8)
 
     X_train = X.iloc[:split_index]
@@ -69,16 +60,11 @@ def train_model():
     y_train = y.iloc[:split_index]
     y_test = y.iloc[split_index:]
 
-    # Normalize Data (Using MinMaxScaler as preferred for LSTM)
     scaler = MinMaxScaler(feature_range=(0,1))
-    
-    # Fit on TRAIN, Transform on TEST
     X_train_norm = scaler.fit_transform(X_train)
     X_test_norm = scaler.transform(X_test)
     
-    # SAVE SCALER LOCALLY (Crucial for Inference)
-    joblib.dump(scaler, "scaler.pkl")
-    print("✅ Scaler saved to 'scaler.pkl'")
+    # We will save the scaler later in the artifacts folder
 
     # --- 4. MODEL TRAINING LOOP ---
     models = {
@@ -89,23 +75,18 @@ def train_model():
     }
 
     model_metrics = {}
-    
     print("🚀 Starting Training...")
     
-    # Train Standard Models
     for name, model in models.items():
         model.fit(X_train_norm, y_train.values.ravel())
         y_pred = model.predict(X_test_norm)
-        
         rmse = np.sqrt(mean_squared_error(y_test, y_pred))
         mae = mean_absolute_error(y_test, y_pred)
         r2 = r2_score(y_test, y_pred)
-        
         model_metrics[name] = {"RMSE": rmse, "MAE": mae, "R2": r2}
         print(f"   👉 {name}: RMSE={rmse:.3f}")
 
-    # Train LSTM (Deep Learning)
-    # Reshape for LSTM [samples, timesteps, features]
+    # Train LSTM
     X_train_lstm = X_train_norm.reshape((X_train_norm.shape[0], 1, X_train_norm.shape[1]))
     X_test_lstm = X_test_norm.reshape((X_test_norm.shape[0], 1, X_test_norm.shape[1]))
 
@@ -113,15 +94,12 @@ def train_model():
     lstm_model.add(LSTM(50, activation="relu", input_shape=(1, X_train_norm.shape[1])))
     lstm_model.add(Dense(1))
     lstm_model.compile(optimizer="adam", loss='mse')
-    
-    # Train quietly (verbose=0) to keep logs clean
     lstm_model.fit(X_train_lstm, y_train, epochs=10, batch_size=32, verbose=0)
     
     y_pred_lstm = lstm_model.predict(X_test_lstm).flatten()
     rmse_lstm = np.sqrt(mean_squared_error(y_test, y_pred_lstm))
     mae_lstm = mean_absolute_error(y_test, y_pred_lstm)
     r2_lstm = r2_score(y_test, y_pred_lstm)
-    
     model_metrics["LSTM"] = {"RMSE": rmse_lstm, "MAE": mae_lstm, "R2": r2_lstm}
     print(f"   👉 LSTM: RMSE={rmse_lstm:.3f}")
 
@@ -129,46 +107,51 @@ def train_model():
     best_model_name = min(model_metrics, key=lambda x: model_metrics[x]["RMSE"])
     print(f"\n🏆 Best Model: {best_model_name}")
 
-    # Prepare file names
-    MODEL_NAME = "karachi_aqi_best_model"
-    model_filename = "best_model.pkl"
-    
+    # --- 6. PREPARE ARTIFACTS FOLDER ---
+    # Create a temporary directory to hold everything we want to upload
+    artifact_dir = "model_artifacts"
+    if os.path.exists(artifact_dir):
+        shutil.rmtree(artifact_dir) # Clean up old runs
+    os.makedirs(artifact_dir)
+
+    # Save Best Model into that folder
     if best_model_name == "LSTM":
-        model_filename = "best_model.keras"
-        lstm_model.save(model_filename)
+        lstm_model.save(os.path.join(artifact_dir, "best_model.keras"))
     else:
         best_model = models[best_model_name]
-        joblib.dump(best_model, model_filename)
+        joblib.dump(best_model, os.path.join(artifact_dir, "best_model.pkl"))
 
-    # --- 6. UPLOAD TO REGISTRY ---
+    # Save Scaler into that folder
+    joblib.dump(scaler, os.path.join(artifact_dir, "scaler.pkl"))
+    print("✅ Model and Scaler saved locally to 'model_artifacts/'")
+
+    # --- 7. UPLOAD TO REGISTRY ---
     mr = project.get_model_registry()
     
-    # Create input example (needed for schema)
     input_example = X_train_norm[:1]
 
-    # Create the Model Object in Hopsworks
+    # Create the Model Object (Metadata)
     if best_model_name == "LSTM":
         hw_model = mr.tensorflow.create_model(
-            name=MODEL_NAME,
+            name="karachi_aqi_best_model",
             metrics=model_metrics[best_model_name],
             input_example=input_example,
             description=f"Best AQI Model: {best_model_name}"
         )
     else:
         hw_model = mr.sklearn.create_model(
-            name=MODEL_NAME,
+            name="karachi_aqi_best_model",
             metrics=model_metrics[best_model_name],
             input_example=input_example,
             description=f"Best AQI Model: {best_model_name}"
         )
 
-    # SAVE BOTH MODEL AND SCALER
-    # We upload the model file AND the scaler.pkl to the same registry entry
-    print("Uploading Model and Scaler to Hopsworks...")
-    hw_model.save(model_filename)
-    hw_model.save("scaler.pkl")
+    # UPLOAD THE ENTIRE DIRECTORY (This fixes your error!)
+    print("Uploading Model artifacts to Hopsworks...")
+    hw_model.save(artifact_dir)
     
-    
+    print("✅ Training Pipeline Complete! Model Version created successfully.")
+
 if __name__ == "__main__":
     train_model()
 
