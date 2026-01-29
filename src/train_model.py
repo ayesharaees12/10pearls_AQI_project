@@ -84,7 +84,7 @@ def train_model():
         mae = mean_absolute_error(y_test, y_pred)
         r2 = r2_score(y_test, y_pred)
         model_metrics[name] = {"RMSE": rmse, "MAE": mae, "R2": r2}
-        print(f"   👉 {name}: RMSE={rmse:.3f}")
+        print(f"   👉 {name}: RMSE={rmse:.3f}, MAE={mae:.3f}, R2={r2:.3f}")
 
     # Train LSTM
     X_train_lstm = X_train_norm.reshape((X_train_norm.shape[0], 1, X_train_norm.shape[1]))
@@ -101,7 +101,7 @@ def train_model():
     mae_lstm = mean_absolute_error(y_test, y_pred_lstm)
     r2_lstm = r2_score(y_test, y_pred_lstm)
     model_metrics["LSTM"] = {"RMSE": rmse_lstm, "MAE": mae_lstm, "R2": r2_lstm}
-    print(f"   👉 LSTM: RMSE={rmse_lstm:.3f}")
+    print(f"   👉 LSTM: RMSE={rmse_lstm:.3f} MAE={mae:.3f}, R2={r2:.3f}")
 
     # --- 5. SELECT BEST MODEL ---
     best_model_name = min(model_metrics, key=lambda x: model_metrics[x]["RMSE"])
