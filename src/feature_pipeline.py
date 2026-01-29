@@ -3,7 +3,7 @@ import hopsworks
 import pandas as pd
 import requests
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # 1. Connect to Hopsworks
 project = hopsworks.login(
@@ -61,7 +61,6 @@ def get_weather_data():
 
 # 3. Feature Logic
 def calculate_advanced_features(combined_df):
-    # Sort by time to ensure calculations are correct
     combined_df = combined_df.sort_values(by='datetime').reset_index(drop=True)
     
     combined_df['aqi_lag_1'] = combined_df['aqi'].shift(1)
@@ -73,7 +72,7 @@ def calculate_advanced_features(combined_df):
     return combined_df
 
 if __name__ == "__main__":
-    # Step A: Get New Data
+    # A. Get New Data
     new_data_df = get_weather_data()
     
     if new_data_df.empty:
@@ -81,27 +80,33 @@ if __name__ == "__main__":
     else:
         print(f"Fetched new data for: {new_data_df['datetime'].values[0]}")
 
-        # Step B: Get History
+        # B. Get History
         print("Reading history from Hopsworks...")
         try:
             history_df = fg.read()
-            
-            # ### CRITICAL FIX: Standardize Timezones ###
-            # If history has a timezone (e.g. UTC), strip it so it matches new_data_df
-            if not history_df.empty:
-                 history_df['datetime'] = pd.to_datetime(history_df['datetime'])
-                 if history_df['datetime'].dt.tz is not None:
-                     history_df['datetime'] = history_df['datetime'].dt.tz_localize(None)
-
-            # Filter columns to match
-            relevant_cols = new_data_df.columns.tolist()
-            history_df = history_df[relevant_cols]
-            
         except Exception as e:
             print(f"History read warning: {e}")
             history_df = pd.DataFrame()
 
-        # Step C: Stitch
+        # --- C. THE PERMANENT FIX: Universal DateTime Sanitizer ---
+        # This block forces both dataframes to have the exact same time format (Naive UTC)
+        # It prevents the 'Dimension 1' error by rebuilding the columns from scratch.
+        if not history_df.empty:
+            # 1. Reset Index to be safe
+            history_df = history_df.reset_index(drop=True)
+            
+            # 2. Filter columns FIRST to avoid shape mismatches
+            relevant_cols = new_data_df.columns.tolist()
+            history_df = history_df[relevant_cols]
+            
+            # 3. Force History to Naive UTC
+            history_df['datetime'] = pd.to_datetime(history_df['datetime'], utc=True).dt.tz_localize(None)
+
+        # 4. Force New Data to Naive UTC (Matches History)
+        new_data_df['datetime'] = pd.to_datetime(new_data_df['datetime'], utc=True).dt.tz_localize(None)
+        # ------------------------------------------------------------
+
+        # D. Stitch
         if not history_df.empty:
             combined_df = pd.concat([history_df, new_data_df], axis=0, ignore_index=True)
         else:
@@ -109,11 +114,9 @@ if __name__ == "__main__":
             
         combined_df = combined_df.drop_duplicates(subset=['datetime'], keep='last')
 
-        # Step D: Calculate
-        print("Calculating Lag, Rolling Max, and Changes...")
+        # E. Calculate & Upload
+        print("Calculating Features...")
         processed_df = calculate_advanced_features(combined_df)
-
-        # Step E: Upload
         upload_df = processed_df.tail(1)
 
         print(f"Uploading row. AQI: {upload_df['aqi'].values[0]}")
@@ -123,8 +126,12 @@ if __name__ == "__main__":
             write_options={"wait_for_job": False}
         )
         print("Success: Pipeline run finished!")
+   
+
+
     
-       
+          
+      
 
         
        
