@@ -35,7 +35,7 @@ def train_model():
     print("⏳ Fetching data from Feature Store...")
     fs = project.get_feature_store()
     fg = fs.get_feature_group(name="karachi_aqi_features", version=7)
-    --- NEW: FEATURE VIEW BLOCK START ---
+    #--- NEW: FEATURE VIEW BLOCK START ---
     # We select all features. You can filter specific columns here if needed.
     query = fg.select_all()
     
