@@ -31,16 +31,15 @@ def train_model():
         project="aqi_quality_fs"
     )
 
-    # --- 2. FETCH DATA ---
+    # --- 2. FETCH DATA & CREATE FEATURE VIEW ---
     print("⏳ Fetching data from Feature Store...")
     fs = project.get_feature_store()
     fg = fs.get_feature_group(name="karachi_aqi_features", version=7)
-    #--- NEW: FEATURE VIEW BLOCK START ---
-    # We select all features. You can filter specific columns here if needed.
+    
+    # Select all features
     query = fg.select_all()
     
     # 1. Get or Create the Feature View
-    # This creates the "Contract" between your training script and your future Web App.
     try:
         feature_view = fs.get_feature_view(name="karachi_aqi_view", version=1)
         print("✅ Found existing Feature View.")
@@ -51,23 +50,23 @@ def train_model():
             version=1,
             description="View for AQI Prediction Model",
             query=query,
-            labels=["aqi"] # Explicitly tell Hopsworks this is our target
+            labels=["aqi"] # This tells Hopsworks to separate 'aqi'
         )
         print("✅ Created new Feature View.")
 
     # 2. Fetch Training Data via the View
-    # Instead of fg.read(), we ask the Feature View for the data.
-    # This ensures we use the exact schema defined in the view.
     print("⏳ Retrieving training data via Feature View...")
     
-    # We get X (features) and y (target) together as a single DataFrame for now
-    # so we can apply your specific Time-Series sorting/splitting logic below.
-    df, _ = feature_view.training_data(
+    # --- FIX STARTS HERE ---
+    # We retrieve BOTH the features (X) and the labels (y)
+    features_df, labels_df = feature_view.training_data(
         description="AQI Training Dataset"
     )
-    # --- FEATURE VIEW BLOCK END ---
-    
-  
+
+    # We stitch them back together into one 'df' so the rest of your script works perfectly
+    print(f"   Fetched Features: {features_df.shape}, Labels: {labels_df.shape}")
+    df = pd.concat([features_df, labels_df], axis=1)
+    # --- FIX ENDS HERE ---
 
     if 'datetime' in df.columns:
         df = df.sort_values(by='datetime').reset_index(drop=True)
