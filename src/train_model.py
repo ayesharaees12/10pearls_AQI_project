@@ -31,42 +31,12 @@ def train_model():
         project="aqi_quality_fs"
     )
 
-    # --- 2. FETCH DATA & CREATE FEATURE VIEW ---
+    # --- 2. FETCH DATA ---
     print("⏳ Fetching data from Feature Store...")
     fs = project.get_feature_store()
     fg = fs.get_feature_group(name="karachi_aqi_features", version=7)
     
-    # Select all features
-    query = fg.select_all()
-    
-    # 1. Get or Create the Feature View
-    try:
-        feature_view = fs.get_feature_view(name="karachi_aqi_view", version=1)
-        print("✅ Found existing Feature View.")
-    except:
-        print("⚠️ Feature View not found. Creating new one...")
-        feature_view = fs.create_feature_view(
-            name="karachi_aqi_view",
-            version=1,
-            description="View for AQI Prediction Model",
-            query=query,
-            labels=["aqi"] # This tells Hopsworks to separate 'aqi'
-        )
-        print("✅ Created new Feature View.")
-
-    # 2. Fetch Training Data via the View
-    print("⏳ Retrieving training data via Feature View...")
-    
-    # --- FIX STARTS HERE ---
-    # We retrieve BOTH the features (X) and the labels (y)
-    features_df, labels_df = feature_view.training_data(
-        description="AQI Training Dataset"
-    )
-
-    # We stitch them back together into one 'df' so the rest of your script works perfectly
-    print(f"   Fetched Features: {features_df.shape}, Labels: {labels_df.shape}")
-    df = pd.concat([features_df, labels_df], axis=1)
-    # --- FIX ENDS HERE ---
+    df = fg.read()
 
     if 'datetime' in df.columns:
         df = df.sort_values(by='datetime').reset_index(drop=True)
@@ -131,7 +101,7 @@ def train_model():
     mae_lstm = mean_absolute_error(y_test, y_pred_lstm)
     r2_lstm = r2_score(y_test, y_pred_lstm)
     model_metrics["LSTM"] = {"RMSE": rmse_lstm, "MAE": mae_lstm, "R2": r2_lstm}
-    print(f"   👉 LSTM: RMSE={rmse_lstm:.3f} MAE={mae:.3f}, R2={r2:.3f}")
+    print(f"   👉 LSTM: RMSE={rmse_lstm:.3f}, MAE={mae:.3f}, R2={r2:.3f}")
 
     # --- 5. SELECT BEST MODEL ---
     best_model_name = min(model_metrics, key=lambda x: model_metrics[x]["RMSE"])
