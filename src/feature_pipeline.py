@@ -36,7 +36,7 @@ def get_weather_data():
     row = {
         'datetime': current_dt,
         'aqi': int(poll_data['main']['aqi']),
-        'humidity': int(weath_res['main']['humidity']),
+        'humidity': int(w_response['main']['humidity']),
         'pm2_5': float(comps['pm2_5']),
         'pm10': float(comps['pm10']),
         'nitrogen_dioxide': float(comps['no2']),
