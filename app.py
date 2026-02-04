@@ -139,20 +139,13 @@ try:
     model = joblib.load(next(f for f in Path(download_path).rglob("*.pkl") if "scaler" not in f.name))
     fs = project.get_feature_store()
     fg = fs.get_feature_group(name=FG_NAME, version=FG_VERSION)
-   
-    st.info("🔄 Attempting to load data...")
+    # ⬇️ STANDARD STABLE LOAD (Works perfectly on Hopsworks 3.7.0)
+    st.info("🔄 Loading data from Hopsworks...")
     
-    try:
-        # METHOD A: Force Hive Engine (The fix we tried)
-        df_recent = fg.read(read_options={"use_hive": True}).tail(1000)
-        st.success("✅ Loaded data using Hive Engine.")
-        
-    except Exception as e:
-        # METHOD B: Fallback to Direct SQL (If Method A fails, this runs)
-        st.warning(f"⚠️ Hive read failed, switching to SQL Fallback. Error: {e}")
-        query = fs.sql(f"SELECT * FROM {FG_NAME}_{FG_VERSION} ORDER BY `datetime` DESC LIMIT 1000")
-        df_recent = query
-        st.success("✅ Loaded data using SQL Fallback.")
+    # "use_hive": True is supported in 3.7.0 and fixes the crash
+    df_recent = fg.read(read_options={"use_hive": True}).tail(1000)
+    
+    st.success("✅ Connected to Hopsworks and loaded latest data.")
     
         
     
@@ -366,6 +359,7 @@ if not df_recent.empty:
 
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
