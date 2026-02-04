@@ -142,17 +142,18 @@ try:
     fs = project.get_feature_store()
     fg = fs.get_feature_group(name=FG_NAME, version=FG_VERSION)
     # ⬇️ STANDARD STABLE LOAD (Works perfectly on Hopsworks 3.7.0)
-    st.info("🔄 Loading data from Hopsworks...")
     
-    # "use_hive": True is supported in 3.7.0 and fixes the crash
-    df_recent = fg.read(read_options={"use_hive": True}).tail(1000)
+    # --- LOAD DATA (SQL OVERRIDE) ---
+    st.info("🔄 Loading data via SQL Query...")
+    
+    # ⬇️ THE FIX: Use direct SQL to bypass the buggy engine
+    # We construct the table name: featuregroup_version
+    query_string = f"SELECT * FROM {FG_NAME}_{FG_VERSION} ORDER BY `datetime` DESC LIMIT 1000"
+    
+    # Execute the query directly
+    df_recent = fs.sql(query_string)
     
     st.success("✅ Connected to Hopsworks and loaded latest data.")
-    
-        
-    
-    
-
 except Exception as e:
     st.error(f"Error: {e}")
     st.stop()
@@ -361,6 +362,7 @@ if not df_recent.empty:
 
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
