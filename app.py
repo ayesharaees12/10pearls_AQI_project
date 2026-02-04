@@ -139,7 +139,7 @@ try:
     model = joblib.load(next(f for f in Path(download_path).rglob("*.pkl") if "scaler" not in f.name))
     fs = project.get_feature_store()
     fg = fs.get_feature_group(name=FG_NAME, version=FG_VERSION)
-    df_recent = fg.read().tail(1000) 
+    df_recent = fg.read(read_options={"use_hive": True}).tail(1000)
     
     st.success("✅ Connected to Hopsworks and loaded latest data.")
 
@@ -351,5 +351,6 @@ if not df_recent.empty:
 
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
