@@ -4,11 +4,24 @@ import pandas as pd
 import requests
 import numpy as np
 from datetime import datetime
+import os
+import hopsworks
 
-# 1. Connect to Hopsworks
+# 🛠️ Debug Check: This won't show your key, but will tell us if it's missing
+api_key = os.getenv("HOPSWORKS_API_KEY")
+
+if not api_key:
+    print("❌ ERROR: HOPSWORKS_API_KEY is empty in the GitHub environment!")
+    exit(1)
+else:
+    print(f"✅ API Key detected (Length: {len(api_key)})")
+
+# The Login
 project = hopsworks.login(
-    project="aqi_quality_fs", 
-    api_key_value=os.getenv("HOPSWORKS_API_KEY")
+    api_key_value=api_key,
+    project="aqi_quality_fs"
+)
+
 )
 fs = project.get_feature_store()
 fg = fs.get_feature_group(name="karachi_aqi_features", version=7)
