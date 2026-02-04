@@ -25,9 +25,15 @@ FG_VERSION = 7
 AQI_API_KEY = "6f8154a1a8bf4c5197fe70b0da282b35"
 LAT, LON = 24.8607, 67.0011 
 
-BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(BASE_DIR / ".env")
-HOPSWORKS_API_KEY = os.getenv("HOPSWORKS_API_KEY")
+try:
+    # Try loading from Streamlit Cloud Secrets first
+    HOPSWORKS_API_KEY = st.secrets["HOPSWORKS_API_KEY"]
+    AQI_API_KEY = st.secrets["AQI_API_KEY"]
+except:
+    # Fallback to local .env file (for your laptop)
+    load_dotenv(BASE_DIR / ".env")
+    HOPSWORKS_API_KEY = os.getenv("HOPSWORKS_API_KEY")
+    AQI_API_KEY = "6f8154a1a8bf4c5197fe70b0da282b35"
 
 st.set_page_config(
     page_title="Karachi AQI Forecast", 
@@ -38,9 +44,7 @@ st.set_page_config(
 # ────────────────────────────────────────────────
 # 2. CUSTOM CSS (Professional Dark Blue/Slate Theme)
 # ────────────────────────────────────────────────
-# ────────────────────────────────────────────────
-# 2. CUSTOM CSS (Updated to fix the top white bar)
-# ────────────────────────────────────────────────
+
 st.markdown("""
     <style>
     /* 1. FIX: Targets the very top header area to remove the white bar */
@@ -104,8 +108,19 @@ with st.sidebar:
 # ────────────────────────────────────────────────
 st.title("🏙️ Karachi AQI forecasting Dashboard")
 st.markdown("Real-time and 72-hour Air Quality predictions.")
+# ⬇️ NEW: DEBUG CHECK (This will tell us if the key is missing!)
+if not HOPSWORKS_API_KEY:
+    st.error("❌ CRITICAL ERROR: HOPSWORKS_API_KEY is missing!")
+    st.info("Please go to 'Settings > Secrets' in Streamlit Cloud and add your key.")
+    st.stop() # Stops the app so it doesn't hang
+
 try:
-    project = hopsworks.login(api_key_value=HOPSWORKS_API_KEY, project=PROJECT_NAME)
+    # ⬇️ NEW: Force 'project' to be found or fail (No hanging)
+    project = hopsworks.login(
+        api_key_value=HOPSWORKS_API_KEY, 
+        project=PROJECT_NAME
+    )
+    
     mr = project.get_model_registry()
     models = mr.get_models(MODEL_NAME)
     hw_model = max(models, key=lambda x: x.version)
@@ -336,3 +351,4 @@ if not df_recent.empty:
 
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
