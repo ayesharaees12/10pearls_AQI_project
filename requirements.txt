@@ -1,4 +1,4 @@
-hopsworks>=3.4
+hopsworks==3.7.0
 confluent-kafka
 pandas
 numpy
@@ -15,6 +15,7 @@ streamlit
 pyarrow
 shap
 plotly
+
 
 
 
