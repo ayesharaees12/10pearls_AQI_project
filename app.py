@@ -116,10 +116,12 @@ if not HOPSWORKS_API_KEY:
 
 try:
     # ⬇️ NEW: Force 'project' to be found or fail (No hanging)
+    st.info("🔌 Connecting to Hopsworks...")
     project = hopsworks.login(
         api_key_value=HOPSWORKS_API_KEY, 
         project=PROJECT_NAME
     )
+    fs = project.get_feature_store()
     
     mr = project.get_model_registry()
     models = mr.get_models(MODEL_NAME)
@@ -359,6 +361,7 @@ if not df_recent.empty:
 
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
