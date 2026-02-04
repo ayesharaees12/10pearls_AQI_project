@@ -14,7 +14,7 @@ import plotly.express as px
 from dotenv import load_dotenv
 from pathlib import Path
 import math
-
+BASE_DIR = Path(__file__).resolve().parent
 # ────────────────────────────────────────────────
 # 1. CONFIGURATION
 # ────────────────────────────────────────────────
@@ -351,4 +351,5 @@ if not df_recent.empty:
 
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
