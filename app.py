@@ -67,7 +67,7 @@ with st.sidebar:
 # ────────────────────────────────────────────────
 # 4. SYSTEM LOGIC (SQL FIX APPLIED)
 # ────────────────────────────────────────────────
-st.title("Karachi AQI forecasting Dashboard")
+st.title(" Fixed Karachi AQI forecasting Dashboard")
 st.markdown("Real-time and 72-hour Air Quality predictions.")
 
 if not HOPSWORKS_API_KEY:
@@ -239,6 +239,7 @@ if not df_recent.empty:
     st.dataframe(daily_summary.style.background_gradient(cmap="GnBu", subset=['aqi']), use_container_width=True, column_config={"Date": st.column_config.DateColumn("Date", format="DD MMM YYYY"), "aqi": st.column_config.NumberColumn("Predicted AQI", format="%.1f")})
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
