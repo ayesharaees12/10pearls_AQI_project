@@ -22,7 +22,7 @@ project = hopsworks.login(
     project="aqi_quality_fs"
 )
 
-)
+
 fs = project.get_feature_store()
 fg = fs.get_feature_group(name="karachi_aqi_features", version=7)
 
