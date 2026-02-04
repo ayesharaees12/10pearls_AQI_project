@@ -1,4 +1,4 @@
-hopsworks==4.2.*
+hopsworks>=3.4
 confluent-kafka
 pandas
 numpy
@@ -14,5 +14,6 @@ tensorflow
 streamlit
 pyarrow
 shap
+
 
 
