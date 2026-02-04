@@ -1,134 +1,36 @@
-# Byte-compiled / optimized / DLL files
+# ────────────────────────────────────────────────
+# 1. PYTHON & OS JUNK
+# ────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
+.DS_Store
+Thumbs.db
 
-# C extensions
-*.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py.cover
-.hypothesis/
-.pytest_cache/
-cover/
-
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Environments
+# ────────────────────────────────────────────────
+# 2. VIRTUAL ENVIRONMENTS (Crucial)
+# ────────────────────────────────────────────────
 .env
-.envrc
 .venv
-env/
 venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# Jupyter Notebook
-.ipynb_checkpoints/
-
-# IPython
-profile_default/
-ipython_config.py
-
-# Ruff stuff:
-.ruff_cache/
-
-# PyPI configuration file
-.pypirc
-
-# Cursor ignore files
-.cursorignore
-.cursorindexingignore
+env/
+hopsworks_env/
 
 # ────────────────────────────────────────────────
-# CUSTOM ADDITIONS FOR YOUR AQI PROJECT
+# 3. DATA & MODELS (Don't upload large files)
 # ────────────────────────────────────────────────
-
-# Data files – NEVER commit raw or processed CSVs, pickles, models
 data/
 *.csv
 *.pkl
 *.joblib
-*.h5
-*.zip
 *.parquet
-backup_*.csv
+*.zip
 
-# Hopsworks & API keys
-.env
-*.key
-hopsworks_config.json
-
-# Large logs / temp files from notebooks
-*.log
-*.tmp
-*.bak
-
-# Virtual environments (already partially covered, but explicit)
-hopsworks_env/
-.venv/
-venv/
+# ────────────────────────────────────────────────
+# 4. STREAMLIT & IDE CONFIG
+# ────────────────────────────────────────────────
+.streamlit/
+.vscode/
+.idea/
+.spyproject
+.ipynb_checkpoints/
