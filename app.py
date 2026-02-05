@@ -85,9 +85,6 @@ with st.sidebar:
     m_rmse = st.empty()
     m_r2 = st.empty()
     m_mae = st.empty()
-    st.divider()
-    st.markdown("### 👨‍💻 Developed by")
-    st.markdown(" **Ayesha Raees**")
     
     st.info("System Last Updated: " + datetime.now().strftime("%d-%b %H:%M"))
 
@@ -134,18 +131,18 @@ try:
     curr_mae = metrics.get('MAE', 0.0)
 
     # 5.  SIDEBAR (Current vs Best)
-    m_name.write(f" **Current:** {algo_name}")
+    m_name.write(f" **Best Model:** {algo_name}")
     m_rmse.markdown(f"📉 RMSE: **{curr_rmse:.4f}**")
     m_r2.markdown(f"📈 R2: **{curr_r2:.4f}**")
     m_mae.markdown(f"📏 MAE: **{curr_mae:.4f}**")
 
-    # Add the "High Score" display below the current metrics
-    st.sidebar.divider()
-    st.sidebar.markdown("### 🏆 All-Time Record")
-    if curr_rmse <= best_rmse_ever:
-        st.sidebar.success(f"🌟 **New Record!** {best_rmse_ever:.4f}")
-    else:
-        st.sidebar.info(f"Best RMSE: **{best_rmse_ever:.4f}**")
+    # # Add the "High Score" display below the current metrics
+    # st.sidebar.divider()
+    # st.sidebar.markdown("### 🏆 All-Time Record")
+    # if curr_rmse <= best_rmse_ever:
+    #     st.sidebar.success(f"🌟 **New Record!** {best_rmse_ever:.4f}")
+    # else:
+    #     st.sidebar.info(f"Best RMSE: **{best_rmse_ever:.4f}**")
 
     # 6. Load Model & Data (Standard Logic)
     scaler = joblib.load(next(Path(download_path).rglob("scaler.pkl")))
@@ -384,6 +381,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
