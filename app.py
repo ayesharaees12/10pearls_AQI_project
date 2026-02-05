@@ -42,37 +42,24 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    /* 1. Remove white header bar */
-    header, [data-testid="stHeader"] {
-        background-color: rgba(0,0,0,0) !important;
-    }
-
-    /* 2. Main Background */
+    /* 1. Main App Background */
     .stApp {
         background-color: #1E293B; /* Slate 800 */
         color: #E2E8F0;
     }
-    
-    /* 3. FIX: FORCE TABLE HEADERS TO BE DARK BLUE */
+
+    /* 2. FIX: FORCE TABLE HEADERS TO BE DARK BLUE */
     [data-testid="stDataFrame"] th {
-        background-color: #1E293B !important; /* Match App Background */
-        color: #E2E8F0 !important; /* Light Text */
-        border-bottom: 1px solid #475569 !important; /* Dark Grey Border */
-        border-right: 1px solid #475569 !important; /* Right Border for columns */
-    }
-    
-    /* 4. FIX: FORCE TABLE CELLS TO HAVE DARK BORDERS */
-    [data-testid="stDataFrame"] td {
-        background-color: #1E293B !important; 
+        background-color: #1E293B !important; /* Matches Background */
+        color: #E2E8F0 !important;             /* Light Text */
         border-bottom: 1px solid #475569 !important;
-        border-right: 1px solid #475569 !important;
-        color: #E2E8F0 !important;
     }
 
-    /* Keep Sidebar Styles */
-    section[data-testid="stSidebar"] {
-        background-color: #0F172A; 
-        border-right: 1px solid #334155;
+    /* 3. FIX: FORCE TABLE DATA CELLS TO MATCH */
+    [data-testid="stDataFrame"] td {
+        background-color: #1E293B !important;
+        color: #E2E8F0 !important;
+        border-bottom: 1px solid #475569 !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -344,10 +331,7 @@ if not df_recent.empty:
     st.divider()
     st.subheader("📊3 Days Forecast Summary")
 
-    # ─────────────────────────────────────────────────────────────
-    # 5. FORECAST TABLE (1-5 SCALE VERSION)
-    # ─────────────────────────────────────────────────────────────
-
+    
     forecast_only_df = pd.DataFrame(predictions)
     forecast_only_df['Date'] = pd.to_datetime(forecast_only_df['datetime']).dt.date
     
@@ -355,20 +339,20 @@ if not df_recent.empty:
     daily_summary = forecast_only_df.groupby('Date')['aqi'].mean().reset_index()
     daily_summary = daily_summary[daily_summary['Date'] > datetime.now().date()]
     
-    # Rename columns for the table
+    # Rename columns
     daily_summary.columns = ['Forecast Date', 'AQI Level']
-
-    # Apply Styling
+    
+   
     styled_df = daily_summary.style.set_properties(**{
-        'background-color': '#1E293B',  #  main background
-        'color': '#E2E8F0',             #  text color
-        'border-color': '#D3D3D3'       #  border color
+        'background-color': '#1E293B',  # pp Background
+        'color': '#E2E8F0',             # Light Text
+        'border-color': '#475569'       # Dark Grey Border
     }).background_gradient(
         cmap="RdYlGn_r",      
         subset=['AQI Level'], 
         vmin=1, vmax=5
     )
-
+    
     # Display
     st.dataframe(
         styled_df,
@@ -381,6 +365,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
