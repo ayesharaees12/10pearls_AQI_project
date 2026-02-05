@@ -132,7 +132,7 @@ def train_model():
    
 
 # --- 7. UPLOAD TO REGISTRY (WITH HISTORY LOG) ---
-     mr = project.get_model_registry()
+    mr = project.get_model_registry()
     VERSION_ONE = 1
     new_metrics = model_metrics[best_model_name]
     input_example = X_train_norm[:1]
