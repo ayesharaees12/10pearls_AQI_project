@@ -128,36 +128,67 @@ def train_model():
     
 
     # --- 7. UPLOAD TO REGISTRY (VERSION 1 "HIGH SCORE" LOGIC) ---
+    # --- 7. UPLOAD TO REGISTRY (ZOMBIE-PROOF VERSION) ---
     mr = project.get_model_registry()
     VERSION_ONE = 1
     new_metrics = model_metrics[best_model_name]
     new_rmse = new_metrics["RMSE"]
     input_example = X_train_norm[:1]
 
+    print(f"🔍 Checking for existing Version {VERSION_ONE}...")
+
     try:
-        # 1. Try to fetch the existing "High Score" model (Version 1)
-        hw_model = mr.get_model("karachi_aqi_best_model", version=VERSION_ONE)
+        # 1. Try to fetch existing Version 1
+        existing_model = mr.get_model("karachi_aqi_best_model", version=VERSION_ONE)
         
-        # Get the old RMSE from the website's database
-        old_rmse = hw_model.metrics.get("RMSE", 999.0)
-        
+        # 2. Safely get the old RMSE (Handle the "AttributeError" bug)
+        try:
+            # Try getting 'metrics', if it fails (Zombie model), assume RMSE is infinite (999.0)
+            if hasattr(existing_model, 'training_metrics') and existing_model.training_metrics:
+                old_rmse = existing_model.training_metrics.get("RMSE", 999.0)
+            elif hasattr(existing_model, 'metrics') and existing_model.metrics:
+                old_rmse = existing_model.metrics.get("RMSE", 999.0)
+            else:
+                old_rmse = 999.0
+        except Exception:
+            old_rmse = 999.0 # Force overwrite if metrics are broken
+
         print(f"⚖️ Comparing: Old Best RMSE ({old_rmse:.4f}) vs New Run ({new_rmse:.4f})")
 
+        # 3. DECISION TIME
         if new_rmse < old_rmse:
-            print(f"🔥 RECORD BROKEN! Updating Version {VERSION_ONE} scores on website...")
+            print(f"🔥 RECORD BROKEN! Deleting old Version {VERSION_ONE} to clear path...")
             
-            # This part forces the website to update the score display
-            hw_model.metrics = new_metrics 
-            hw_model.input_example = input_example
+            # CRITICAL FIX: Delete the old model first to avoid "Already Exists" error
+            existing_model.delete()
             
-            # Overwrite the actual files (scaler.pkl, best_model.pkl)
-            hw_model.save(artifact_dir) 
+            print(f"✨ Creating fresh Version {VERSION_ONE}...")
+            # Create the object again
+            if best_model_name == "LSTM":
+                hw_model = mr.tensorflow.create_model(
+                    name="karachi_aqi_best_model",
+                    version=VERSION_ONE,
+                    metrics=new_metrics,
+                    input_example=input_example,
+                    description=f"Best AQI Model (Static Version 1)"
+                )
+            else:
+                hw_model = mr.sklearn.create_model(
+                    name="karachi_aqi_best_model",
+                    version=VERSION_ONE,
+                    metrics=new_metrics,
+                    input_example=input_example,
+                    description=f"Best AQI Model (Static Version 1)"
+                )
+            hw_model.save(artifact_dir)
+            print("✅ Version 1 Updated Successfully!")
+            
         else:
-            print(f"⏸️ No improvement. Keeping the old Version {VERSION_ONE} as the best.")
+            print(f"⏸️ No improvement. Keeping the old Version {VERSION_ONE}.")
 
-    except Exception:
-        # 2. If Version 1 doesn't exist at all yet, create it
-        print(f"✨ Initializing Version {VERSION_ONE} for the first time...")
+    except Exception as e:
+        # 4. If Version 1 didn't exist at all (Clean Start)
+        print(f"✨ Version {VERSION_ONE} not found (or error: {e}). Creating new...")
         
         if best_model_name == "LSTM":
             hw_model = mr.tensorflow.create_model(
@@ -175,11 +206,10 @@ def train_model():
                 input_example=input_example,
                 description=f"Best AQI Model (Static Version 1)"
             )
-        
-        # Upload the artifacts folder
         hw_model.save(artifact_dir)
+        print("✅ Version 1 Created Successfully!")
 
-    print("✅ Training Pipeline Complete!")
+    print("✅ Training Pipeline Finished.")
 
 if __name__ == "__main__":
     train_model()
