@@ -368,7 +368,7 @@ if not df_recent.empty:
     styled_df = daily_summary.style.set_properties(**{
         'background-color': '#1E293B',  #  main background
         'color': '#E2E8F0',             #  text color
-        'border-color': '#475569'       #  border color
+        'border-color': '#D3D3D3'       #  border color
     }).background_gradient(
         cmap="RdYlGn_r",      
         subset=['AQI Level'], 
@@ -381,12 +381,13 @@ if not df_recent.empty:
         use_container_width=True,
         hide_index=True,
         column_config={
-            "Forecast Date": st.column_config.DateColumn("📅 Date", format="DD MMM, YYYY"),
+            "Forecast Date": st.column_config.DateColumn("📅 Date", format="DD-MMM-YYYY"),
             "AQI Level": st.column_config.NumberColumn("💨 Avg AQI", format="%.1f"),
         }
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
