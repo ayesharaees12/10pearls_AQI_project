@@ -373,15 +373,19 @@ if not df_recent.empty:
         subset=['AQI Level'], 
         vmin=1, vmax=5
     )
+        # Display
+    st.dataframe(
+        styled_df,
         use_container_width=True,
-        hide_index=True,          # Hides the row numbers for a clean look
+        hide_index=True,
         column_config={
-            "Forecast Date": st.column_config.DateColumn("📅 Date", format="DD- MMM - YYYY"),
+            "Forecast Date": st.column_config.DateColumn("📅 Date", format="DD MMM, YYYY"),
             "AQI Level": st.column_config.NumberColumn("💨 Avg AQI", format="%.1f"),
         }
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
