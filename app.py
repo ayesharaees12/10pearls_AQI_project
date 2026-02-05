@@ -353,7 +353,7 @@ if not df_recent.empty:
     # ─────────────────────────────────────────────────────────────
     # 5. FORECAST TABLE (1-5 SCALE VERSION)
     # ─────────────────────────────────────────────────────────────
-    
+
     forecast_only_df = pd.DataFrame(predictions)
     forecast_only_df['Date'] = pd.to_datetime(forecast_only_df['datetime']).dt.date
     
@@ -364,16 +364,18 @@ if not df_recent.empty:
     # Rename columns for the table
     daily_summary.columns = ['Forecast Date', 'AQI Level']
 
+    # Apply Styling
     styled_df = daily_summary.style.set_properties(**{
-        'background-color': '#1E293',  # Dark Grey Background
-        'color': 'white',               # White Text
-        'border-color': '#444444'       # Subtle Grey Borders
+        'background-color': '#1E293B',  #  main background
+        'color': '#E2E8F0',             #  text color
+        'border-color': '#475569'       #  border color
     }).background_gradient(
         cmap="RdYlGn_r",      
         subset=['AQI Level'], 
         vmin=1, vmax=5
     )
-        # Display
+
+    # Display
     st.dataframe(
         styled_df,
         use_container_width=True,
@@ -385,6 +387,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
