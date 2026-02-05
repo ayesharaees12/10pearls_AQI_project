@@ -365,7 +365,7 @@ if not df_recent.empty:
     daily_summary.columns = ['Forecast Date', 'AQI Level']
 
     styled_df = daily_summary.style.set_properties(**{
-        'background-color': '#1E1E1E',  # Dark Grey Background
+        'background-color': '#1E293',  # Dark Grey Background
         'color': 'white',               # White Text
         'border-color': '#444444'       # Subtle Grey Borders
     }).background_gradient(
@@ -385,6 +385,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
