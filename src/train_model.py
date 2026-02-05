@@ -7,7 +7,9 @@ import shap
 import matplotlib.pyplot as plt 
 import warnings
 import json
-import shutil # Added for file operations
+import shutil
+
+from datetime import datetim# Added for file operations
 
 # Machine Learning Libraries
 import tensorflow as tf 
@@ -127,88 +129,77 @@ def train_model():
 
     
 
-    # --- 7. UPLOAD TO REGISTRY (VERSION 1 "HIGH SCORE" LOGIC) ---
-    # --- 7. UPLOAD TO REGISTRY (ZOMBIE-PROOF VERSION) ---
-    mr = project.get_model_registry()
+   
+
+# --- 7. UPLOAD TO REGISTRY (WITH HISTORY LOG) ---
+     mr = project.get_model_registry()
     VERSION_ONE = 1
     new_metrics = model_metrics[best_model_name]
-    new_rmse = new_metrics["RMSE"]
     input_example = X_train_norm[:1]
-
-    print(f"🔍 Checking for existing Version {VERSION_ONE}...")
-
+    
+    # Define the History File Name
+    history_file = "metrics_history.json"
+    history_path = os.path.join(artifact_dir, history_file)
+    current_history = []
+    
+    print(f"🔄 Processing Version {VERSION_ONE}...")
+    
     try:
-        # 1. Try to fetch existing Version 1
+        # 1. Try to get the existing V1 to download its history
         existing_model = mr.get_model("karachi_aqi_best_model", version=VERSION_ONE)
         
-        # 2. Safely get the old RMSE (Handle the "AttributeError" bug)
-        try:
-            # Try getting 'metrics', if it fails (Zombie model), assume RMSE is infinite (999.0)
-            if hasattr(existing_model, 'training_metrics') and existing_model.training_metrics:
-                old_rmse = existing_model.training_metrics.get("RMSE", 999.0)
-            elif hasattr(existing_model, 'metrics') and existing_model.metrics:
-                old_rmse = existing_model.metrics.get("RMSE", 999.0)
-            else:
-                old_rmse = 999.0
-        except Exception:
-            old_rmse = 999.0 # Force overwrite if metrics are broken
-
-        print(f"⚖️ Comparing: Old Best RMSE ({old_rmse:.4f}) vs New Run ({new_rmse:.4f})")
-
-        # 3. DECISION TIME
-        if new_rmse < old_rmse:
-            print(f"🔥 RECORD BROKEN! Deleting old Version {VERSION_ONE} to clear path...")
-            
-            # CRITICAL FIX: Delete the old model first to avoid "Already Exists" error
-            existing_model.delete()
-            
-            print(f"✨ Creating fresh Version {VERSION_ONE}...")
-            # Create the object again
-            if best_model_name == "LSTM":
-                hw_model = mr.tensorflow.create_model(
-                    name="karachi_aqi_best_model",
-                    version=VERSION_ONE,
-                    metrics=new_metrics,
-                    input_example=input_example,
-                    description=f"Best AQI Model (Static Version 1)"
-                )
-            else:
-                hw_model = mr.sklearn.create_model(
-                    name="karachi_aqi_best_model",
-                    version=VERSION_ONE,
-                    metrics=new_metrics,
-                    input_example=input_example,
-                    description=f"Best AQI Model (Static Version 1)"
-                )
-            hw_model.save(artifact_dir)
-            print("✅ Version 1 Updated Successfully!")
-            
-        else:
-            print(f"⏸️ No improvement. Keeping the old Version {VERSION_ONE}.")
-
-    except Exception as e:
-        # 4. If Version 1 didn't exist at all (Clean Start)
-        print(f"✨ Version {VERSION_ONE} not found (or error: {e}). Creating new...")
+        # Download the old artifacts to a temp folder to find the JSON
+        print("📥 Downloading previous history...")
+        temp_path = existing_model.download()
+        old_json_path = os.path.join(temp_path, history_file)
         
-        if best_model_name == "LSTM":
-            hw_model = mr.tensorflow.create_model(
-                name="karachi_aqi_best_model",
-                version=VERSION_ONE,
-                metrics=new_metrics,
-                input_example=input_example,
-                description=f"Best AQI Model (Static Version 1)"
-            )
-        else:
-            hw_model = mr.sklearn.create_model(
-                name="karachi_aqi_best_model",
-                version=VERSION_ONE,
-                metrics=new_metrics,
-                input_example=input_example,
-                description=f"Best AQI Model (Static Version 1)"
-            )
-        hw_model.save(artifact_dir)
-        print("✅ Version 1 Created Successfully!")
-
+        if os.path.exists(old_json_path):
+            with open(old_json_path, 'r') as f:
+                current_history = json.load(f)
+        
+        # 2. Delete the old V1 (Standard "Smash and Replace")
+        print(f"🗑️ Deleting old Version {VERSION_ONE} to update...")
+        existing_model.delete()
+        
+    except Exception:
+        print(f"✨ Version {VERSION_ONE} not found. Creating fresh history.")
+    
+    # 3. Add TODAY'S entry to the history
+    new_entry = {
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "model": best_model_name,
+        "rmse": new_metrics["RMSE"],
+        "mae": new_metrics["MAE"],
+        "r2": new_metrics["R2"]
+    }
+    current_history.append(new_entry)
+    
+    # 4. Save the updated JSON list into the artifact folder
+    with open(history_path, 'w') as f:
+        json.dump(current_history, f, indent=4)
+    
+    print(f"📝 History updated! Total runs saved: {len(current_history)}")
+    
+    # 5. Create and Save the New Model (containing the history file)
+    if best_model_name == "LSTM":
+        hw_model = mr.tensorflow.create_model(
+            name="karachi_aqi_best_model",
+            version=VERSION_ONE,
+            metrics=new_metrics, # This shows ONLY today's score on the main UI
+            input_example=input_example,
+            description=f"Latest: {best_model_name} (History in {history_file})"
+        )
+    else:
+        hw_model = mr.sklearn.create_model(
+            name="karachi_aqi_best_model",
+            version=VERSION_ONE,
+            metrics=new_metrics,
+            input_example=input_example,
+            description=f"Latest: {best_model_name} (History in {history_file})"
+        )
+    
+    hw_model.save(artifact_dir)
+    print(f"✅ Version {VERSION_ONE} saved with full history log!")
     print("✅ Training Pipeline Finished.")
 
 if __name__ == "__main__":
