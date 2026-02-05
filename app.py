@@ -105,33 +105,66 @@ with st.sidebar:
 st.title("🏙️ Karachi AQI forecasting Dashboard")
 st.markdown("Real-time and 72-hour Air Quality predictions.")
 try:
+    # 1. Connect and Fetch Version 1 (The "Active" Model)
     project = hopsworks.login(api_key_value=HOPSWORKS_API_KEY, project=PROJECT_NAME)
     mr = project.get_model_registry()
-    models = mr.get_models(MODEL_NAME)
-    hw_model = max(models, key=lambda x: x.version)
     
+    # ⚡ FORCE VERSION 1 ⚡
+    hw_model = mr.get_model(MODEL_NAME, version=1)
+
+    # 2. Download Artifacts (Model + History File)
+    download_path = hw_model.download()
+
+    # 3. Read the History File to find "All-Time Best"
+    json_path = os.path.join(download_path, "metrics_history.json")
+    best_rmse_ever = 999.0
+    
+    if os.path.exists(json_path):
+        with open(json_path, 'r') as f:
+            history = json.load(f)
+            # Find the lowest RMSE in the entire history list
+            best_rmse_ever = min(entry['rmse'] for entry in history)
+    else:
+        # Fallback if history doesn't exist yet
+        best_rmse_ever = hw_model.training_metrics.get('RMSE', 0.0)
+
+    # 4. Get Current Run Metrics
     full_desc = hw_model.description if hw_model.description else "Unknown"
     algo_name = full_desc.split(":")[-1].strip() if ":" in full_desc else full_desc
-    
     metrics = getattr(hw_model, 'training_metrics', {}) or {}
-    m_name.write(f"🤖 **Model:** {algo_name}")
-    m_rmse.write(f"📉 RMSE: **{metrics.get('RMSE', 0.0967):.4f}**")
-    m_r2.write(f"📈 R2: **{metrics.get('R2', 0.9827):.4f}**")
-    m_mae.write(f"📏 MAE: **{metrics.get('MAE', 0.0243):.4f}**")
+    
+    curr_rmse = metrics.get('RMSE', 0.0)
+    curr_r2 = metrics.get('R2', 0.0)
+    curr_mae = metrics.get('MAE', 0.0)
 
-    download_path = hw_model.download()
+    # 5. UPDATE SIDEBAR (Current vs Best)
+    m_name.write(f"🤖 **Current:** {algo_name}")
+    m_rmse.markdown(f"📉 RMSE: **{curr_rmse:.4f}**")
+    m_r2.markdown(f"📈 R2: **{curr_r2:.4f}**")
+    m_mae.markdown(f"📏 MAE: **{curr_mae:.4f}**")
+
+    # Add the "High Score" display below the current metrics
+    st.sidebar.divider()
+    st.sidebar.markdown("### 🏆 All-Time Record")
+    if curr_rmse <= best_rmse_ever:
+        st.sidebar.success(f"🌟 **New Record!** {best_rmse_ever:.4f}")
+    else:
+        st.sidebar.info(f"Best RMSE: **{best_rmse_ever:.4f}**")
+
+    # 6. Load Model & Data (Standard Logic)
     scaler = joblib.load(next(Path(download_path).rglob("scaler.pkl")))
     model = joblib.load(next(f for f in Path(download_path).rglob("*.pkl") if "scaler" not in f.name))
+    
     fs = project.get_feature_store()
     fg = fs.get_feature_group(name=FG_NAME, version=FG_VERSION)
+    # Use the stable reader we fixed earlier
     df_recent = fg.read(read_options={"use_arrow_flight": False}).tail(1000)
     
-    st.success("✅ Connected to Hopsworks and loaded latest data.")
+    st.success(f"✅ Loaded Version 1 (Trained on: {algo_name})")
 
 except Exception as e:
-    st.error(f"Error: {e}")
+    st.error(f"❌ Connection Error: {e}")
     st.stop()
-
 # ────────────────────────────────────────────────
 # 5. LIVE AQI HEADER
 # ────────────────────────────────────────────────
@@ -160,7 +193,7 @@ st.markdown(f"""
 <div class="aqi-card">
     <p style="color: #94A3B8; margin-bottom: 5px;">Current Air Quality Index (1-5)</p>
     <div style="display: flex; align-items: baseline; gap: 20px;">
-        <p class="big-aqi" style="font-size: 5rem;">{live_aqi or '--'}</p>
+        <p class="big-aqi" style="font-size: 4rem;">{live_aqi or '--'}</p>
         <p style="font-size: 3.0rem; font-weight: 700; color: {status_color};">({status_text})</p>
     </div>
 </div>
@@ -316,26 +349,54 @@ if not df_recent.empty:
     # 7. FORECAST TABLE
     # ────────────────────────────────────────────────
     st.divider()
-    st.subheader("📊3 Forecast Summary")
+    st.subheader("📊3 Days Forecast Summary")
 
+    # ─────────────────────────────────────────────────────────────
+    # 5. FORECAST TABLE (1-5 SCALE VERSION)
+    # ─────────────────────────────────────────────────────────────
     forecast_only_df = pd.DataFrame(predictions) 
     forecast_only_df['Date'] = pd.to_datetime(forecast_only_df['datetime']).dt.date
+    
+    # Group by Date
     daily_summary = forecast_only_df.groupby('Date')['aqi'].mean().reset_index()
+    
+    # Filter for future dates only
     today_date = datetime.now().date()
     daily_summary = daily_summary[daily_summary['Date'] > today_date]
 
-    # FIX: Changed "Teal" to "GnBu" (Green-Blue) which is a valid color map.
+    # 1. Add a "Health Status" Column (Adjusted for 1-5 Scale)
+    def get_status(aqi):
+        # Round to nearest whole number to determine category
+        val = (aqi)
+        if val == 1: return "🟢 Good"
+        elif val == 2: return "🟡 Moderate"
+        elif val == 3: return "🟠 Sensitive Groups"
+        elif val == 4: return "🔴 Unhealthy"
+        else: return "☠️ Hazardous"
+
+    daily_summary['Status'] = daily_summary['aqi'].apply(get_status)
+
+    # 2. Rename columns for display
+    daily_summary = daily_summary.rename(columns={'Date': 'Forecast Date', 'aqi': 'Avg AQI (1-5)'})
+
+    # 3. Display with "Traffic Light" Colors (Green=1, Red=5)
     st.dataframe(
-        daily_summary.style.background_gradient(cmap="GnBu", subset=['aqi']),
+        daily_summary.style.background_gradient(
+            cmap="RdYlGn_r",  # Red-Yellow-Green (Reversed so 1=Green, 5=Red)
+            subset=['Avg AQI (1-5)'],
+            vmin=1, vmax=5  # 👈 Adjusted Scale limits
+        ),
         use_container_width=True,
+        hide_index=True,
         column_config={
-            "Date": st.column_config.DateColumn("Date", format="DD MMM YYYY"),
-            "aqi": st.column_config.NumberColumn("Predicted AQI", format="%.1f"),
+            "Forecast Date": st.column_config.DateColumn("📅 Date", format="DD MMM, YYYY"),
+            "Avg AQI (1-5)": st.column_config.NumberColumn("💨 AQI Level", format="%.1f"),
+            "Status": st.column_config.TextColumn("🏥 Health Risk"),
         }
     )
-
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
