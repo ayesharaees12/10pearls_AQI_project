@@ -42,47 +42,40 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    /* 1. FIX: Targets the very top header area to remove the white bar */
+    /* 1. Remove white header bar */
     header, [data-testid="stHeader"] {
         background-color: rgba(0,0,0,0) !important;
     }
 
-    /* 2. Main Background - Light Dark Blue (Slate) */
+    /* 2. Main Background */
     .stApp {
         background-color: #1E293B; /* Slate 800 */
-        color: #E2E8F0; /* Light Text */
+        color: #E2E8F0;
     }
     
-    /* Keep your existing card and sidebar styles below... */
-    .aqi-card {
-        background: #334155; /* Slate 700 */
-        padding: 24px;
-        border-radius: 16px;
-        border: 1px solid #475569;
-        text-align: left;
-        margin-bottom: 24px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    /* 3. FIX: FORCE TABLE HEADERS TO BE DARK BLUE */
+    [data-testid="stDataFrame"] th {
+        background-color: #1E293B !important; /* Match App Background */
+        color: #E2E8F0 !important; /* Light Text */
+        border-bottom: 1px solid #475569 !important; /* Dark Grey Border */
+        border-right: 1px solid #475569 !important; /* Right Border for columns */
     }
     
-    .big-aqi {
-        font-size: 5rem;
-        font-weight: 800;
-        color: #2DD4BF; /* Teal 400 */
-        margin: 0;
-        line-height: 1;
-        text-shadow: 0 0 20px rgba(45, 212, 191, 0.3);
+    /* 4. FIX: FORCE TABLE CELLS TO HAVE DARK BORDERS */
+    [data-testid="stDataFrame"] td {
+        background-color: #1E293B !important; 
+        border-bottom: 1px solid #475569 !important;
+        border-right: 1px solid #475569 !important;
+        color: #E2E8F0 !important;
     }
-    
-    h1, h2, h3 { color: #F1F5F9 !important; }
-    p { color: #CBD5E1 !important; }
-    
+
+    /* Keep Sidebar Styles */
     section[data-testid="stSidebar"] {
-        background-color: #0F172A; /* Slate 900 */
+        background-color: #0F172A; 
         border-right: 1px solid #334155;
     }
     </style>
 """, unsafe_allow_html=True)
-
 # ────────────────────────────────────────────────
 # 3. SIDEBAR
 # ────────────────────────────────────────────────
@@ -129,14 +122,18 @@ try:
 
     # 4. Get Current Run Metrics
     full_desc = hw_model.description if hw_model.description else "Unknown"
-    algo_name = full_desc.split(":")[-1].strip() if ":" in full_desc else full_desc
+    if ":" in full_desc:
+        raw_name = full_desc.split(":")[-1].strip()
+        algo_name = raw_name.split("(")[0].strip() # 👈 This cuts off the extra text
+    else:
+        algo_name = full_desc
+
     metrics = getattr(hw_model, 'training_metrics', {}) or {}
-    
     curr_rmse = metrics.get('RMSE', 0.0)
     curr_r2 = metrics.get('R2', 0.0)
     curr_mae = metrics.get('MAE', 0.0)
 
-    # 5. UPDATE SIDEBAR (Current vs Best)
+    # 5.  SIDEBAR (Current vs Best)
     m_name.write(f" **Current:** {algo_name}")
     m_rmse.markdown(f"📉 RMSE: **{curr_rmse:.4f}**")
     m_r2.markdown(f"📈 R2: **{curr_r2:.4f}**")
@@ -387,6 +384,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
