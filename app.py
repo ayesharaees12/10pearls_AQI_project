@@ -39,9 +39,7 @@ st.set_page_config(
 # ────────────────────────────────────────────────
 # 2. CUSTOM CSS (Professional Dark Blue/Slate Theme)
 # ────────────────────────────────────────────────
-# ────────────────────────────────────────────────
-# 2. CUSTOM CSS (Updated to fix the top white bar)
-# ────────────────────────────────────────────────
+
 st.markdown("""
     <style>
     /* 1. FIX: Targets the very top header area to remove the white bar */
@@ -139,7 +137,7 @@ try:
     curr_mae = metrics.get('MAE', 0.0)
 
     # 5. UPDATE SIDEBAR (Current vs Best)
-    m_name.write(f"🤖 **Current:** {algo_name}")
+    m_name.write(f" **Current:** {algo_name}")
     m_rmse.markdown(f"📉 RMSE: **{curr_rmse:.4f}**")
     m_r2.markdown(f"📈 R2: **{curr_r2:.4f}**")
     m_mae.markdown(f"📏 MAE: **{curr_mae:.4f}**")
@@ -366,13 +364,15 @@ if not df_recent.empty:
     # Rename columns for the table
     daily_summary.columns = ['Forecast Date', 'AQI Level']
 
-    # Display clean table with Green-to-Red gradient
-    st.dataframe(
-        daily_summary.style.background_gradient(
-            cmap="RdYlGn_r",      # Low(1)=Green, High(5)=Red
-            subset=['AQI Level'], 
-            vmin=1, vmax=5
-        ),
+    styled_df = daily_summary.style.set_properties(**{
+        'background-color': '#1E1E1E',  # Dark Grey Background
+        'color': 'white',               # White Text
+        'border-color': '#444444'       # Subtle Grey Borders
+    }).background_gradient(
+        cmap="RdYlGn_r",      
+        subset=['AQI Level'], 
+        vmin=1, vmax=5
+    )
         use_container_width=True,
         hide_index=True,          # Hides the row numbers for a clean look
         column_config={
@@ -382,6 +382,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
