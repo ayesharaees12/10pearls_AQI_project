@@ -39,27 +39,39 @@ st.set_page_config(
 # ────────────────────────────────────────────────
 # 2. CUSTOM CSS (Professional Dark Blue/Slate Theme)
 # ────────────────────────────────────────────────
-
 st.markdown("""
     <style>
-    /* 1. Main App Background */
+    /* 1. Remove white header bar */
+    header, [data-testid="stHeader"] {
+        background-color: rgba(0,0,0,0) !important;
+    }
+
+    /* 2. Main Background */
     .stApp {
         background-color: #1E293B; /* Slate 800 */
         color: #E2E8F0;
     }
-
-    /* 2. FIX: FORCE TABLE HEADERS TO BE DARK BLUE */
+    
+    /* 3. FIX: FORCE TABLE HEADERS TO BE DARK BLUE */
     [data-testid="stDataFrame"] th {
-        background-color: #1E293B !important; /* Matches Background */
-        color: #E2E8F0 !important;             /* Light Text */
+        background-color: #1E293B !important; /* Match App Background */
+        color: #E2E8F0 !important; /* Light Text */
+        border-bottom: 1px solid #475569 !important; /* Dark Grey Border */
+        border-right: 1px solid #475569 !important; /* Right Border for columns */
+    }
+    
+    /* 4. FIX: FORCE TABLE CELLS TO HAVE DARK BORDERS */
+    [data-testid="stDataFrame"] td {
+        background-color: #1E293B !important; 
         border-bottom: 1px solid #475569 !important;
+        border-right: 1px solid #475569 !important;
+        color: #E2E8F0 !important;
     }
 
-    /* 3. FIX: FORCE TABLE DATA CELLS TO MATCH */
-    [data-testid="stDataFrame"] td {
-        background-color: #1E293B !important;
-        color: #E2E8F0 !important;
-        border-bottom: 1px solid #475569 !important;
+    /* Keep Sidebar Styles */
+    section[data-testid="stSidebar"] {
+        background-color: #0F172A; 
+        border-right: 1px solid #334155;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -365,6 +377,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
