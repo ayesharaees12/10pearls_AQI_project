@@ -1,8 +1,8 @@
 import os
 import warnings
 import json
-os.environ["TF_ENABLE_ONEDNN_OPTS"]="0"
-os.environ["TF_CPP_MIN_LOG_LEVEL"]="2"
+# os.environ["TF_ENABLE_ONEDNN_OPTS"]="0"
+# os.environ["TF_CPP_MIN_LOG_LEVEL"]="2"
 warnings.filterwarnings("ignore")
 import streamlit as st
 import pandas as pd
@@ -355,48 +355,34 @@ if not df_recent.empty:
     # ─────────────────────────────────────────────────────────────
     # 5. FORECAST TABLE (1-5 SCALE VERSION)
     # ─────────────────────────────────────────────────────────────
-    forecast_only_df = pd.DataFrame(predictions) 
+    
+    forecast_only_df = pd.DataFrame(predictions)
     forecast_only_df['Date'] = pd.to_datetime(forecast_only_df['datetime']).dt.date
     
-    # Group by Date
+    # Group, Mean, and Filter
     daily_summary = forecast_only_df.groupby('Date')['aqi'].mean().reset_index()
+    daily_summary = daily_summary[daily_summary['Date'] > datetime.now().date()]
     
-    # Filter for future dates only
-    today_date = datetime.now().date()
-    daily_summary = daily_summary[daily_summary['Date'] > today_date]
+    # Rename columns for the table
+    daily_summary.columns = ['Forecast Date', 'AQI Level']
 
-    # 1. Add a "Health Status" Column (Adjusted for 1-5 Scale)
-    def get_status(aqi):
-        # Round to nearest whole number to determine category
-        val = (aqi)
-        if val == 1: return "🟢 Good"
-        elif val == 2: return "🟡 Moderate"
-        elif val == 3: return "🟠 Sensitive Groups"
-        elif val == 4: return "🔴 Unhealthy"
-        else: return "☠️ Hazardous"
-
-    daily_summary['Status'] = daily_summary['aqi'].apply(get_status)
-
-    # 2. Rename columns for display
-    daily_summary = daily_summary.rename(columns={'Date': 'Forecast Date', 'aqi': 'Avg AQI (1-5)'})
-
-    # 3. Display with "Traffic Light" Colors (Green=1, Red=5)
+    # Display clean table with Green-to-Red gradient
     st.dataframe(
         daily_summary.style.background_gradient(
-            cmap="RdYlGn_r",  # Red-Yellow-Green (Reversed so 1=Green, 5=Red)
-            subset=['Avg AQI (1-5)'],
-            vmin=1, vmax=5  # 👈 Adjusted Scale limits
+            cmap="RdYlGn_r",      # Low(1)=Green, High(5)=Red
+            subset=['AQI Level'], 
+            vmin=1, vmax=5
         ),
         use_container_width=True,
-        hide_index=True,
+        hide_index=True,          # Hides the row numbers for a clean look
         column_config={
-            "Forecast Date": st.column_config.DateColumn("📅 Date", format="DD MMM, YYYY"),
-            "Avg AQI (1-5)": st.column_config.NumberColumn("💨 AQI Level", format="%.1f"),
-            "Status": st.column_config.TextColumn("🏥 Health Risk"),
+            "Forecast Date": st.column_config.DateColumn("📅 Date", format="DD- MMM - YYYY"),
+            "AQI Level": st.column_config.NumberColumn("💨 Avg AQI", format="%.1f"),
         }
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
