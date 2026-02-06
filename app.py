@@ -94,11 +94,17 @@ st.title("🏙️ Karachi AQI forecasting Dashboard")
 st.markdown("Real-time and 72-hour Air Quality predictions.")
 try:
     # ─────────────────────────────────────────────────────────────
-    # STEP 1: CONNECT & FIND MODEL
+    # STEP 1: CONNECT TO HOPSWORKS
     # ─────────────────────────────────────────────────────────────
     project = hopsworks.login(api_key_value=HOPSWORKS_API_KEY, project=PROJECT_NAME)
     mr = project.get_model_registry()
+    
+    # CHANGE 1: Success message on screen immediately after login
+    st.success("✅ Connected to Hopsworks! Fetching latest data...") 
 
+    # ─────────────────────────────────────────────────────────────
+    # STEP 2: FIND & DOWNLOAD BEST MODEL
+    # ─────────────────────────────────────────────────────────────
     # robust search for model
     models = mr.get_models("karachi_aqi_best_model")
     if not models:
@@ -108,65 +114,74 @@ try:
         st.error("⚠️ No models found in Registry.")
         st.stop()
 
-    best_model = models[-1] # Take the latest one (Version 7)
+    best_model = models[-1] # Take the latest one
     print(f"🏆 Loading Version {best_model.version}")
     
+    # EXTRACT REAL NAME (Clean up the description to find 'RandomForest' etc.)
+    desc = best_model.description if best_model.description else "Unknown"
+    if "|" in desc:
+        # Format: "Run Date: ... | Algo: RandomForest"
+        algo_name = desc.split("|")[-1].strip()
+    elif ":" in desc:
+        # Format: "Best Model: RandomForest (History...)"
+        raw_name = desc.split(":")[-1].strip()
+        algo_name = raw_name.split("(")[0].strip()
+    else:
+        algo_name = f"Version {best_model.version}"
+
     # Update Sidebar Metrics
     metrics = best_model.training_metrics or {}
-    m_name.write(f"🤖 **Model:** Version {best_model.version}")
+    
+    # CHANGE 2: Show Real Name in Sidebar
+    m_name.write(f"🤖 **Model:** {algo_name}") 
     m_rmse.markdown(f"📉 RMSE: **{metrics.get('RMSE', 0):.4f}**")
     m_r2.markdown(f"📈 R2: **{metrics.get('R2', 0):.4f}**")
     m_mae.markdown(f"📏 MAE: **{metrics.get('MAE', 0):.4f}**")
 
+    # CHANGE 3: Success message for Model Download
+    st.sidebar.success(f"✅ Best Trained Model Downloaded: {algo_name}")
+
     # ─────────────────────────────────────────────────────────────
-    # STEP 2: DOWNLOAD & LOAD FILES (The Crash Point?)
+    # STEP 3: LOAD FILES
     # ─────────────────────────────────────────────────────────────
     download_path = best_model.download()
     model_dir = Path(download_path)
     
-    # 🔍 DEBUG: Print all files found to the logs
-    print(f"📂 Files in {model_dir}: {[f.name for f in model_dir.rglob('*')]}")
-
     try:
         scaler_path = next(model_dir.rglob("scaler.pkl"))
         scaler = joblib.load(scaler_path)
-        print("✅ Scaler Loaded")
     except StopIteration:
         st.error(f"❌ CRITICAL: 'scaler.pkl' not found in Version {best_model.version}!")
         st.stop()
 
     try:
-        # Find any .pkl that is NOT the scaler
         model_path = next(f for f in model_dir.rglob("*.pkl") if "scaler" not in f.name)
         model = joblib.load(model_path)
-        print(f"✅ Model Loaded: {model_path.name}")
     except StopIteration:
         st.error(f"❌ CRITICAL: Model .pkl file not found in Version {best_model.version}!")
         st.stop()
 
     # ─────────────────────────────────────────────────────────────
-    # STEP 3: FETCH FEATURE DATA (The Other Crash Point?)
+    # STEP 4: FETCH FEATURE DATA
     # ─────────────────────────────────────────────────────────────
     print("⏳ Fetching recent data from Feature Store...")
     fs = project.get_feature_store()
     fg = fs.get_feature_group(name=FG_NAME, version=FG_VERSION)
     
     try:
-        # We wrap this in its own try/except so the app doesn't die if data fails
         df_recent = fg.read(read_options={"use_arrow_flight": False}).tail(1000)
         print("✅ Data Fetched Successfully")
     except Exception as e:
         print(f"⚠️ Feature Store Read Failed: {e}")
         st.warning("⚠️ Could not load history data. Charts might be empty.")
-        df_recent = pd.DataFrame() # Use empty DF so app continues
-
-    st.success(f"✅ System Ready (Version {best_model.version})")
+        df_recent = pd.DataFrame()
 
 except Exception as e:
-    # This catches any other weird errors
     st.error(f"❌ Unexpected Error: {e}")
     print(traceback.format_exc())
     st.stop()
+
+ 
 # ────────────────────────────────────────────────
 # 5. LIVE AQI HEADER
 # ────────────────────────────────────────────────
@@ -387,6 +402,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
