@@ -318,13 +318,14 @@ if not df_recent.empty:
     fig = go.Figure()
 
     # LAYER A: The Smooth Line (All Data)
+    # LAYER A: The Smooth Line
     fig.add_trace(go.Scatter(
         x=forecast_df['datetime'],  
         y=forecast_df['aqi'],       
-        mode='lines',              # 👈 Line ONLY
+        mode='lines',              
         name='Trend',
-        line=dict(color='#22D3EE', width=3), # Neon Cyan
-        hoverinfo='skip'           # Don't show hover on the line, only dots
+        line=dict(color='#22D3EE', width=3, shape='spline'), # 👈 Add shape='spline' here
+        hoverinfo='skip'           
     ))
 
     # LAYER B: The Pointers (Only 00:00 & 12:00)
@@ -498,6 +499,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
