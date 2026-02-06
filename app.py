@@ -184,35 +184,37 @@ except Exception as e:
     # print(traceback.format_exc()) # distinct logging if needed
     st.stop()
 
+# ─────────────────────────────────────────────────────────────
+# 5. SIDEBAR: STATIC SAFETY GUIDE (Blue Box Style)
+# ─────────────────────────────────────────────────────────────
 with st.sidebar:
     st.divider()
+    st.markdown("### 🏥 Health Guide Reference")
     
-    # Create a unified box with a border
-    with st.container(border=True):
-        st.markdown("### 🏥 Health Guide Reference")
-        
-        # We show the CURRENT status at the top if data exists
-        if 'df_recent' in locals() and not df_recent.empty:
-            curr_aqi = df_recent['aqi'].iloc[-1]
-            st.info(f"📍 **Current Status: Level {curr_aqi}**")
-        
-        # List ALL levels in one big text block
-        st.markdown("""
-        **🟢 Level 1: Good** *Safe for all outdoor activities.*
-        
-        ---
-        **🟡 Level 2: Moderate** *Sensitive groups (asthma/elderly) should limit exertion.*
-        
-        ---
-        **🟠 Level 3: Sensitive** *Children & elderly should reduce outdoor play.*
-        
-        ---
-        **🔴 Level 4: Unhealthy** *Wear a mask. Avoid outdoor exercise completely.*
-        
-        ---
-        **☠️ Level 5: Hazardous** *Emergency conditions. Stay indoors! Serious health risk.*
-        """)
-  st.info("System Last Updated: " + datetime.now().strftime("%d-%b %H:%M"))
+    # ONE Big Blue Box with all details
+    st.info("""
+    **🟢 Level 1: Good**
+    *Safe for all outdoor activities.*
+    
+    ---
+    **🟡 Level 2: Moderate**
+    *Sensitive groups (asthma/elderly) should limit exertion.*
+    
+    ---
+    **🟠 Level 3: Sensitive**
+    *Children & elderly should reduce outdoor play.*
+    
+    ---
+    **🔴 Level 4: Unhealthy**
+    *Wear a mask. Avoid outdoor exercise completely.*
+    
+    ---
+    **☠️ Level 5: Hazardous**
+    *Emergency conditions. Stay indoors! Serious health risk.*
+    """)
+    
+    # FIX: This line is now indented exactly the same as st.info above
+    st.info("System Last Updated: " + datetime.now().strftime("%d-%b %H:%M"))
  
 # ────────────────────────────────────────────────
 # 5. LIVE AQI HEADER
@@ -434,6 +436,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
