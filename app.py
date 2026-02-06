@@ -408,12 +408,13 @@ if not df_recent.empty:
 
         # 2. Process Data
         daily_summary = pd.DataFrame(predictions)
+        daily_summary["datetime]=daily_summary["datetime"] + timedelta(hours=5)
         daily_summary['Date'] = pd.to_datetime(daily_summary['datetime']).dt.date
         
         # Filter: strictly greater than today
         daily_summary = daily_summary[daily_summary['Date'] > today]
         
-        # Group & Rename
+        # Group & Rename"
         daily_summary = daily_summary.groupby('Date')['aqi'].mean().reset_index()
         daily_summary.columns = ['Forecast Date', 'AQI Level']
 
@@ -439,6 +440,7 @@ if not df_recent.empty:
 
     else:
         st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
