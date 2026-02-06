@@ -93,60 +93,85 @@ with st.sidebar:
 st.title("🏙️ Karachi AQI forecasting Dashboard")
 st.markdown("Real-time and 72-hour Air Quality predictions.")
 try:
-    # 1. Connect
+    # 1. Connect to Hopsworks
     project = hopsworks.login(api_key_value=HOPSWORKS_API_KEY, project=PROJECT_NAME)
     mr = project.get_model_registry()
 
-    # 2. SEARCH FOR MODELS
-    # Try the NEW name first
+    # 2. SEARCH FOR MODELS (Robust Search)
+    # First, try the new "Auto-Version" name
     models = mr.get_models("karachi_aqi_best_model")
     
-    # FALLBACK: If new name doesn't exist, try the OLD name (so app doesn't crash)
+    # If that list is empty, fall back to your old config name
     if not models:
-        print("⚠️ New model name not found. Trying legacy name...")
-        models = mr.get_models(MODEL_NAME) # Fallback to your config name
+        print(f"⚠️ 'karachi_aqi_best_model' not found. Trying fallback: {MODEL_NAME}")
+        models = mr.get_models(MODEL_NAME)
 
-    # 3. SAFETY CHECK (Stop if registry is empty)
+    # 3. SAFETY STOP: If still no models, stop here.
     if not models:
-        st.warning("⚠️ No models found in Registry yet. Please run the Training Pipeline first!")
+        st.warning("⚠️ No models found in Registry. Run 'python src/train.py' first!")
         st.stop()
 
-    # 4. FIND THE CHAMPION
-    # We filter out models that might have broken/missing metrics
+    # 4. FIND THE CHAMPION (Best RMSE)
+    # We ignore models that have broken/missing metrics to prevent crashes
     valid_models = [m for m in models if m.training_metrics and 'RMSE' in m.training_metrics]
     
-    if not valid_models:
-        # If no metrics exist, just take the latest one
-        best_model = models[-1]
-    else:
-        # Find the one with the lowest RMSE
+    if valid_models:
         best_model = min(valid_models, key=lambda x: x.training_metrics.get("RMSE", 999.0))
+    else:
+        # Fallback if metrics are missing: just take the newest one
+        best_model = models[-1]
 
-    print(f"🏆 Loading Version {best_model.version} (RMSE: {best_model.training_metrics.get('RMSE', 'N/A')})")
+    print(f"🏆 Loading Version {best_model.version}")
 
-    # 5. Download & Load
-    download_path = best_model.download()
+    # 5. EXTRACT METRICS (Safely)
+    # We use 'or {}' so if metrics is None, it doesn't crash
+    metrics = best_model.training_metrics or {}
     
-    # Update Sidebar
-    metrics = best_model.training_metrics
-    algo_name = best_model.description.split("|")[-1].strip() if "|" in best_model.description else "Unknown"
+    curr_rmse = metrics.get('RMSE', 0.0)
+    curr_r2 = metrics.get('R2', 0.0)
+    curr_mae = metrics.get('MAE', 0.0) # 👈 Explicitly getting MAE
 
+    # 6. EXTRACT MODEL NAME (Smart Parse)
+    desc = best_model.description if best_model.description else "Unknown"
+    
+    # Logic: Handle different description formats
+    if "|" in desc:
+        # New Format: "Run Date: ... | Algo: RandomForest"
+        algo_name = desc.split("|")[-1].strip()
+    elif ":" in desc:
+        # Old Format: "Best Model: RandomForest (History...)"
+        raw_name = desc.split(":")[-1].strip()
+        algo_name = raw_name.split("(")[0].strip()
+    else:
+        algo_name = desc
+
+    # 7. UPDATE SIDEBAR
     m_name.write(f"🤖 **Model:** {algo_name}")
-    m_rmse.markdown(f"📉 RMSE: **{metrics.get('RMSE', 0):.4f}**")
-    m_r2.markdown(f"📈 R2: **{metrics.get('R2', 0):.4f}**")
+    m_rmse.markdown(f"📉 RMSE: **{curr_rmse:.4f}**")
+    m_r2.markdown(f"📈 R2: **{curr_r2:.4f}**")
+    m_mae.markdown(f"📏 MAE: **{curr_mae:.4f}**") # 👈 MAE is back!
     
+    st.sidebar.divider()
     st.sidebar.info(f"Using **Version {best_model.version}**")
 
-    # 6. Load Artifacts
+    # 8. DOWNLOAD & LOAD ARTIFACTS
+    download_path = best_model.download()
+    
+    # Load Scaler & Model
     scaler = joblib.load(next(Path(download_path).rglob("scaler.pkl")))
     model = joblib.load(next(f for f in Path(download_path).rglob("*.pkl") if "scaler" not in f.name))
     
+    # Load Feature Data
     fs = project.get_feature_store()
     fg = fs.get_feature_group(name=FG_NAME, version=FG_VERSION)
     df_recent = fg.read(read_options={"use_arrow_flight": False}).tail(1000)
+    
+    st.success(f"✅ Loaded Best Model (Version {best_model.version})")
 
 except Exception as e:
     st.error(f"❌ Connection Error: {e}")
+    # Print the full error to the logs (terminal) so you can see exactly what failed
+    print(e)
     st.stop()
 # ────────────────────────────────────────────────
 # 5. LIVE AQI HEADER
@@ -368,6 +393,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
