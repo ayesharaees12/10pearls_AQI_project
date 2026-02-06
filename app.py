@@ -93,44 +93,57 @@ with st.sidebar:
 st.title("🏙️ Karachi AQI forecasting Dashboard")
 st.markdown("Real-time and 72-hour Air Quality predictions.")
 try:
-    # 1. Connect to Hopsworks
+    # 1. Connect
     project = hopsworks.login(api_key_value=HOPSWORKS_API_KEY, project=PROJECT_NAME)
     mr = project.get_model_registry()
 
-    # 2. GET ALL VERSIONS of your model
-    print("🔍 Searching for the best model across all versions...")
+    # 2. SEARCH FOR MODELS
+    # Try the NEW name first
     models = mr.get_models("karachi_aqi_best_model")
-
-    # 3. FIND THE CHAMPION (Lowest RMSE)
-    # We loop through V1, V2, V3... and pick the one with the smallest RMSE number
-    best_model = min(models, key=lambda x: x.training_metrics.get("RMSE", 999.0))
     
-    print(f"🏆 Champion Found: Version {best_model.version} with RMSE {best_model.training_metrics.get('RMSE'):.4f}")
+    # FALLBACK: If new name doesn't exist, try the OLD name (so app doesn't crash)
+    if not models:
+        print("⚠️ New model name not found. Trying legacy name...")
+        models = mr.get_models(MODEL_NAME) # Fallback to your config name
 
-    # 4. Download the Champion's Artifacts
+    # 3. SAFETY CHECK (Stop if registry is empty)
+    if not models:
+        st.warning("⚠️ No models found in Registry yet. Please run the Training Pipeline first!")
+        st.stop()
+
+    # 4. FIND THE CHAMPION
+    # We filter out models that might have broken/missing metrics
+    valid_models = [m for m in models if m.training_metrics and 'RMSE' in m.training_metrics]
+    
+    if not valid_models:
+        # If no metrics exist, just take the latest one
+        best_model = models[-1]
+    else:
+        # Find the one with the lowest RMSE
+        best_model = min(valid_models, key=lambda x: x.training_metrics.get("RMSE", 999.0))
+
+    print(f"🏆 Loading Version {best_model.version} (RMSE: {best_model.training_metrics.get('RMSE', 'N/A')})")
+
+    # 5. Download & Load
     download_path = best_model.download()
-
-    # 5. Update Sidebar with Champion's Stats
+    
+    # Update Sidebar
     metrics = best_model.training_metrics
     algo_name = best_model.description.split("|")[-1].strip() if "|" in best_model.description else "Unknown"
 
     m_name.write(f"🤖 **Model:** {algo_name}")
     m_rmse.markdown(f"📉 RMSE: **{metrics.get('RMSE', 0):.4f}**")
     m_r2.markdown(f"📈 R2: **{metrics.get('R2', 0):.4f}**")
-    m_mae.markdown(f"📏 MAE: **{metrics.get('MAE', 0):.4f}**")
     
-    st.sidebar.divider()
-    st.sidebar.info(f"Using **Version {best_model.version}** (Best of All Time)")
+    st.sidebar.info(f"Using **Version {best_model.version}**")
 
-    # 6. Load Model & Data
+    # 6. Load Artifacts
     scaler = joblib.load(next(Path(download_path).rglob("scaler.pkl")))
     model = joblib.load(next(f for f in Path(download_path).rglob("*.pkl") if "scaler" not in f.name))
     
     fs = project.get_feature_store()
     fg = fs.get_feature_group(name=FG_NAME, version=FG_VERSION)
     df_recent = fg.read(read_options={"use_arrow_flight": False}).tail(1000)
-    
-    st.success(f"✅ Loaded Best Model (Version {best_model.version})")
 
 except Exception as e:
     st.error(f"❌ Connection Error: {e}")
@@ -355,6 +368,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
