@@ -212,7 +212,7 @@ with st.sidebar:
         ---
         **☠️ Level 5: Hazardous** *Emergency conditions. Stay indoors! Serious health risk.*
         """)
-st.info("System Last Updated: " + datetime.now().strftime("%d-%b %H:%M"))
+  st.info("System Last Updated: " + datetime.now().strftime("%d-%b %H:%M"))
  
 # ────────────────────────────────────────────────
 # 5. LIVE AQI HEADER
@@ -434,6 +434,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
