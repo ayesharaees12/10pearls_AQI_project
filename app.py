@@ -405,20 +405,23 @@ if not df_recent.empty:
     # ─────────────────────────────────────────────────────────────
     # 3-DAY SUMMARY TABLE (Fixed: No UndefinedVariableError)
     # ─────────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────
+    # 3-DAY SUMMARY TABLE (Excludes Today)
+    # ─────────────────────────────────────────────────────────────
     st.divider(); st.subheader("📊 3-Day Forecast Summary")
 
     if 'predictions' in locals() and predictions:
-        # FIX: Define the date variable OUTSIDE the query
+        # 1. Define 'today' explicitly to avoid errors
         today = datetime.now().date()
         
-        # 1. Process Data (Safe Chain)
+        # 2. Process Data (Safe Chain)
         daily = (pd.DataFrame(predictions)
                  .assign(Date=lambda x: x['datetime'].dt.date)
                  .groupby('Date')['aqi'].mean().reset_index()
-                 .query('Date > @today')  # 👈 Uses the safe 'today' variable
+                 .query('Date > @today')  # 👈 Symbol '>' strictly excludes Today
                  .rename(columns={'Date': 'Forecast Date', 'aqi': 'AQI Level'}))
 
-        # 2. Style & Display
+        # 3. Style & Display
         st.dataframe(
             daily.style.set_properties(**{'background-color': '#1E293B', 'color': '#E2E8F0', 'border-color': '#475569'})
                  .background_gradient(cmap="RdYlGn_r", subset=['AQI Level'], vmin=1, vmax=5),
@@ -430,20 +433,6 @@ if not df_recent.empty:
         )
     else:
         st.warning("⚠️ No data available to generate predictions.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
