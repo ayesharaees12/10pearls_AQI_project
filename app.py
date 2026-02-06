@@ -93,85 +93,79 @@ with st.sidebar:
 st.title("🏙️ Karachi AQI forecasting Dashboard")
 st.markdown("Real-time and 72-hour Air Quality predictions.")
 try:
-    # 1. Connect to Hopsworks
+    # ─────────────────────────────────────────────────────────────
+    # STEP 1: CONNECT & FIND MODEL
+    # ─────────────────────────────────────────────────────────────
     project = hopsworks.login(api_key_value=HOPSWORKS_API_KEY, project=PROJECT_NAME)
     mr = project.get_model_registry()
 
-    # 2. SEARCH FOR MODELS (Robust Search)
-    # First, try the new "Auto-Version" name
+    # robust search for model
     models = mr.get_models("karachi_aqi_best_model")
+    if not models:
+        models = mr.get_models(MODEL_NAME) # Fallback
     
-    # If that list is empty, fall back to your old config name
     if not models:
-        print(f"⚠️ 'karachi_aqi_best_model' not found. Trying fallback: {MODEL_NAME}")
-        models = mr.get_models(MODEL_NAME)
-
-    # 3. SAFETY STOP: If still no models, stop here.
-    if not models:
-        st.warning("⚠️ No models found in Registry. Run 'python src/train.py' first!")
+        st.error("⚠️ No models found in Registry.")
         st.stop()
 
-    # 4. FIND THE CHAMPION (Best RMSE)
-    # We ignore models that have broken/missing metrics to prevent crashes
-    valid_models = [m for m in models if m.training_metrics and 'RMSE' in m.training_metrics]
-    
-    if valid_models:
-        best_model = min(valid_models, key=lambda x: x.training_metrics.get("RMSE", 999.0))
-    else:
-        # Fallback if metrics are missing: just take the newest one
-        best_model = models[-1]
-
+    best_model = models[-1] # Take the latest one (Version 7)
     print(f"🏆 Loading Version {best_model.version}")
-
-    # 5. EXTRACT METRICS (Safely)
-    # We use 'or {}' so if metrics is None, it doesn't crash
+    
+    # Update Sidebar Metrics
     metrics = best_model.training_metrics or {}
-    
-    curr_rmse = metrics.get('RMSE', 0.0)
-    curr_r2 = metrics.get('R2', 0.0)
-    curr_mae = metrics.get('MAE', 0.0) # 👈 Explicitly getting MAE
+    m_name.write(f"🤖 **Model:** Version {best_model.version}")
+    m_rmse.markdown(f"📉 RMSE: **{metrics.get('RMSE', 0):.4f}**")
+    m_r2.markdown(f"📈 R2: **{metrics.get('R2', 0):.4f}**")
+    m_mae.markdown(f"📏 MAE: **{metrics.get('MAE', 0):.4f}**")
 
-    # 6. EXTRACT MODEL NAME (Smart Parse)
-    desc = best_model.description if best_model.description else "Unknown"
-    
-    # Logic: Handle different description formats
-    if "|" in desc:
-        # New Format: "Run Date: ... | Algo: RandomForest"
-        algo_name = desc.split("|")[-1].strip()
-    elif ":" in desc:
-        # Old Format: "Best Model: RandomForest (History...)"
-        raw_name = desc.split(":")[-1].strip()
-        algo_name = raw_name.split("(")[0].strip()
-    else:
-        algo_name = desc
-
-    # 7. UPDATE SIDEBAR
-    m_name.write(f"🤖 **Model:** {algo_name}")
-    m_rmse.markdown(f"📉 RMSE: **{curr_rmse:.4f}**")
-    m_r2.markdown(f"📈 R2: **{curr_r2:.4f}**")
-    m_mae.markdown(f"📏 MAE: **{curr_mae:.4f}**") # 👈 MAE is back!
-    
-    st.sidebar.divider()
-    st.sidebar.info(f"Using **Version {best_model.version}**")
-
-    # 8. DOWNLOAD & LOAD ARTIFACTS
+    # ─────────────────────────────────────────────────────────────
+    # STEP 2: DOWNLOAD & LOAD FILES (The Crash Point?)
+    # ─────────────────────────────────────────────────────────────
     download_path = best_model.download()
+    model_dir = Path(download_path)
     
-    # Load Scaler & Model
-    scaler = joblib.load(next(Path(download_path).rglob("scaler.pkl")))
-    model = joblib.load(next(f for f in Path(download_path).rglob("*.pkl") if "scaler" not in f.name))
-    
-    # Load Feature Data
+    # 🔍 DEBUG: Print all files found to the logs
+    print(f"📂 Files in {model_dir}: {[f.name for f in model_dir.rglob('*')]}")
+
+    try:
+        scaler_path = next(model_dir.rglob("scaler.pkl"))
+        scaler = joblib.load(scaler_path)
+        print("✅ Scaler Loaded")
+    except StopIteration:
+        st.error(f"❌ CRITICAL: 'scaler.pkl' not found in Version {best_model.version}!")
+        st.stop()
+
+    try:
+        # Find any .pkl that is NOT the scaler
+        model_path = next(f for f in model_dir.rglob("*.pkl") if "scaler" not in f.name)
+        model = joblib.load(model_path)
+        print(f"✅ Model Loaded: {model_path.name}")
+    except StopIteration:
+        st.error(f"❌ CRITICAL: Model .pkl file not found in Version {best_model.version}!")
+        st.stop()
+
+    # ─────────────────────────────────────────────────────────────
+    # STEP 3: FETCH FEATURE DATA (The Other Crash Point?)
+    # ─────────────────────────────────────────────────────────────
+    print("⏳ Fetching recent data from Feature Store...")
     fs = project.get_feature_store()
     fg = fs.get_feature_group(name=FG_NAME, version=FG_VERSION)
-    df_recent = fg.read(read_options={"use_arrow_flight": False}).tail(1000)
     
-    st.success(f"✅ Loaded Best Model (Version {best_model.version})")
+    try:
+        # We wrap this in its own try/except so the app doesn't die if data fails
+        df_recent = fg.read(read_options={"use_arrow_flight": False}).tail(1000)
+        print("✅ Data Fetched Successfully")
+    except Exception as e:
+        print(f"⚠️ Feature Store Read Failed: {e}")
+        st.warning("⚠️ Could not load history data. Charts might be empty.")
+        df_recent = pd.DataFrame() # Use empty DF so app continues
+
+    st.success(f"✅ System Ready (Version {best_model.version})")
 
 except Exception as e:
-    st.error(f"❌ Connection Error: {e}")
-    # Print the full error to the logs (terminal) so you can see exactly what failed
-    print(e)
+    # This catches any other weird errors
+    st.error(f"❌ Unexpected Error: {e}")
+    print(traceback.format_exc())
     st.stop()
 # ────────────────────────────────────────────────
 # 5. LIVE AQI HEADER
@@ -393,6 +387,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
