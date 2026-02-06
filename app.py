@@ -402,14 +402,20 @@ if not df_recent.empty:
    # ─────────────────────────────────────────────────────────────
     # 3-DAY SUMMARY TABLE (Compact Version)
     # ─────────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────
+    # 3-DAY SUMMARY TABLE (Fixed: No UndefinedVariableError)
+    # ─────────────────────────────────────────────────────────────
     st.divider(); st.subheader("📊 3-Day Forecast Summary")
 
     if 'predictions' in locals() and predictions:
-        # 1. Process Data in one chain
+        # FIX: Define the date variable OUTSIDE the query
+        today = datetime.now().date()
+        
+        # 1. Process Data (Safe Chain)
         daily = (pd.DataFrame(predictions)
                  .assign(Date=lambda x: x['datetime'].dt.date)
                  .groupby('Date')['aqi'].mean().reset_index()
-                 .query('Date > @datetime.now().date()')
+                 .query('Date > @today')  # 👈 Uses the safe 'today' variable
                  .rename(columns={'Date': 'Forecast Date', 'aqi': 'AQI Level'}))
 
         # 2. Style & Display
