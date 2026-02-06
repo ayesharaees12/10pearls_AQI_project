@@ -396,65 +396,49 @@ if not df_recent.empty:
         This chart summarizes the air quality distribution over the last month.
         """)
 
-    # ────────────────────────────────────────────────
-    # 7. FORECAST TABLE
-    # ────────────────────────────────────────────────
-   # ─────────────────────────────────────────────────────────────
-    # 3-DAY SUMMARY TABLE (Compact Version)
     # ─────────────────────────────────────────────────────────────
-    # ─────────────────────────────────────────────────────────────
-    # 3-DAY SUMMARY TABLE (Fixed: No UndefinedVariableError)
-    # ─────────────────────────────────────────────────────────────
-    # ─────────────────────────────────────────────────────────────
-    # 3-DAY SUMMARY TABLE (Excludes Today)
-    # ─────────────────────────────────────────────────────────────
-    # ─────────────────────────────────────────────────────────────
-    # 3-DAY SUMMARY TABLE (Fixed Indentation & Syntax)
+    # 3-DAY SUMMARY TABLE 
     # ─────────────────────────────────────────────────────────────
     st.divider(); st.subheader("📊 3-Day Forecast Summary")
 
-    # Check if predictions exist before trying to make a table
     if 'predictions' in locals() and predictions:
         
         # 1. Define 'Today' (Karachi Time: UTC+5)
         today = (datetime.now() + timedelta(hours=5)).date()
 
-        # 2. Create Dataframe -> Filter -> Group -> Rename
+        # 2. Process Data
         daily_summary = pd.DataFrame(predictions)
         daily_summary['Date'] = pd.to_datetime(daily_summary['datetime']).dt.date
         
-        # Filter: strictly greater than today (Excludes current day)
+        # Filter: strictly greater than today
         daily_summary = daily_summary[daily_summary['Date'] > today]
         
-        # Group by Date and calculate mean AQI
+        # Group & Rename
         daily_summary = daily_summary.groupby('Date')['aqi'].mean().reset_index()
         daily_summary.columns = ['Forecast Date', 'AQI Level']
 
-        # 3. Apply Styling
+        # 3. Apply Styling (Dark Background, No Gradient)
         styled_df = daily_summary.style.set_properties(**{
-            'background-color': '#1E293B',  
-            'color': '#E2E8F0',             
-            'border-color': '#475569'       
-         })
-            # .background_gradient(
-        #     cmap="RdYlGn_r", subset=['AQI Level'], vmin=1, vmax=5
-        # )
+            'background-color': '#1E293B',  # 👈 Sets entire table to Dark Blue
+            'color': '#E2E8F0',             # Light Text
+            'border-color': '#475569',      # Subtle Grey Border
+            'text-align': 'center'          # Center alignment looks better
+        }) 
+        # Note: I removed .background_gradient() so colors won't change!
 
-        # 4. Display Table (Fixed Syntax Error here)
+        # 4. Display
         st.dataframe(
             styled_df,
             use_container_width=True,
             hide_index=True,
             column_config={
                 "Forecast Date": st.column_config.DateColumn("📅 Date", format="DD-MMM-YYYY"),
-                "AQI Level": st.column_config.NumberColumn("💨 Avg AQI", format="%.1f") # 👈 Fixed this line
+                "AQI Level": st.column_config.NumberColumn("💨 Avg AQI", format="%.1f")
             }
         )
 
     else:
-        # This runs only if no predictions exist
         st.warning("⚠️ No data available to generate predictions.")
-
 
 
 
