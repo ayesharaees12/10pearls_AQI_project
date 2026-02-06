@@ -94,19 +94,13 @@ with st.sidebar:
 st.title("🏙️ Karachi AQI forecasting Dashboard")
 st.markdown("Real-time and 72-hour Air Quality predictions.")
 try:
-    # ─────────────────────────────────────────────────────────────
+    
     # STEP 1: CONNECT TO HOPSWORKS
-    # ─────────────────────────────────────────────────────────────
     project = hopsworks.login(api_key_value=HOPSWORKS_API_KEY, project=PROJECT_NAME)
     mr = project.get_model_registry()
-    
-    # CHANGE 1: Success message on screen immediately after login
     st.success("✅ Connected to Hopsworks! Fetching latest data...") 
 
-    # ─────────────────────────────────────────────────────────────
-    # STEP 2: FIND & DOWNLOAD BEST MODEL
-    # ─────────────────────────────────────────────────────────────
-    # robust search for model
+ # STEP 2: FIND & DOWNLOAD BEST MODEL
     models = mr.get_models("karachi_aqi_best_model")
     if not models:
         models = mr.get_models(MODEL_NAME) # Fallback
@@ -142,9 +136,6 @@ try:
     # CHANGE 3: Success message for Model Download
     st.success(f"✅ Best Trained Model Downloaded: {algo_name}")
 
-    # ─────────────────────────────────────────────────────────────
-    # STEP 3: LOAD FILES
-    # ─────────────────────────────────────────────────────────────
     download_path = best_model.download()
     model_dir = Path(download_path)
     
@@ -314,7 +305,7 @@ if not df_recent.empty:
         height=350, margin=dict(l=10, r=10, t=30, b=10), showlegend=False,
         plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
         xaxis=dict(title=dict(text="Date",font=dict(color='#FFFFFF')), showgrid=False, color='#94A3B8', tickformat="%d-%b\n%H:%M", dtick=43200000),
-        yaxis=dict(title=dict(text=" Predicted AQI",font=dict(color='#FFFFFF')), showgrid=True, gridcolor='#FFFFFF', color='#94A3B8', range=[0.5, 5.5],
+        yaxis=dict(title=dict(text=" Predicted AQI",font=dict(color='#FFFFFF')), showgrid=True, gridcolor='#334155', color='#94A3B8', range=[0.5, 5.5],
                    )
     )
     
@@ -344,17 +335,12 @@ if not df_recent.empty:
     poll_df["Color"] = poll_df["Value"].apply(get_color)
 
     # 4. Create Graph
-    fig_bar = px.bar(poll_df, x="Value", y="Pollutant", orientation='h', 
-                     template="plotly_dark",
-                     text="Value") # Show numbers on bars
+    fig_bar = px.bar(poll_df, x="Value", y="Pollutant", orientation='h', template="plotly_dark", text="Value") # Show numbers on bars
     
     # 5. Force the bars to use our custom colors
     fig_bar.update_traces(marker_color=poll_df["Color"], texttemplate='%{text:.1f}')
     
-    fig_bar.update_layout(
-        height=400, 
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
+    fig_bar.update_layout(height=400, plot_bgcolor='rgba(0,0,0,0)',paper_bgcolor='rgba(0,0,0,0)',
         xaxis=dict(showgrid=True, gridcolor='#334155', title="Concentration (µg/m³)"),
         yaxis=dict(title=None)
     )
@@ -413,44 +399,28 @@ if not df_recent.empty:
     # ────────────────────────────────────────────────
     # 7. FORECAST TABLE
     # ────────────────────────────────────────────────
-    st.divider()
-    st.subheader("📊3 Days Forecast Summary")
+   st.divider(); st.subheader("📊 3-Day Forecast Summary")
 
-    
-    forecast_only_df = pd.DataFrame(predictions)
-    forecast_only_df['Date'] = pd.to_datetime(forecast_only_df['datetime']).dt.date
-    
-    # Group, Mean, and Filter
-    daily_summary = forecast_only_df.groupby('Date')['aqi'].mean().reset_index()
-    daily_summary = daily_summary[daily_summary['Date'] > datetime.now().date()]
-    
-    # Rename columns
-    daily_summary.columns = ['Forecast Date', 'AQI Level']
-    
-   
-    styled_df = daily_summary.style.set_properties(**{
-        'background-color': '#1E293B',  # pp Background
-        'color': '#E2E8F0',             # Light Text
-        'border-color': '#475569'       # Dark Grey Border
-    }).background_gradient(
-        cmap="RdYlGn_r",      
-        subset=['AQI Level'], 
-        vmin=1, vmax=5
-    )
-    
-    # Display
+if 'predictions' in locals() and predictions:
+    # 1. Process Data in one chain
+    daily = (pd.DataFrame(predictions)
+             .assign(Date=lambda x: x['datetime'].dt.date)
+             .groupby('Date')['aqi'].mean().reset_index()
+             .query('Date > @datetime.now().date()')
+             .rename(columns={'Date': 'Forecast Date', 'aqi': 'AQI Level'}))
+
+    # 2. Style & Display
     st.dataframe(
-        styled_df,
-        use_container_width=True,
-        hide_index=True,
+        daily.style.set_properties(**{'background-color': '#1E293B', 'color': '#E2E8F0', 'border-color': '#475569'})
+             .background_gradient(cmap="RdYlGn_r", subset=['AQI Level'], vmin=1, vmax=5),
+        use_container_width=True, hide_index=True,
         column_config={
             "Forecast Date": st.column_config.DateColumn("📅 Date", format="DD-MMM-YYYY"),
-            "AQI Level": st.column_config.NumberColumn("💨 Avg AQI", format="%.1f"),
+            "AQI Level": st.column_config.NumberColumn("💨 Avg AQI", format="%.1f")
         }
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
-
 
 
 
