@@ -235,7 +235,7 @@ status_text, status_color = get_status_ui(live_aqi)
 
 st.markdown(f"""
 <div class="aqi-card">
-    <p style="color: #94A3B8; margin-bottom: 5px;">Current Air Quality Index (1-5)</p>
+    <p style="color: #94A3B8; margin-bottom: 5px;">LIVE Air Quality Index </p>
     <div style="display: flex; align-items: baseline; gap: 20px;">
         <p class="big-aqi" style="font-size: 4rem;">{live_aqi or '--'}</p>
         <p style="font-size: 3.0rem; font-weight: 700; color: {status_color};">({status_text})</p>
@@ -313,8 +313,8 @@ if not df_recent.empty:
     fig.update_layout(
         height=350, margin=dict(l=10, r=10, t=30, b=10), showlegend=False,
         plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-        xaxis=dict(title="Date", showgrid=False, color='#94A3B8', tickformat="%d-%b\n%H:%M", dtick=43200000),
-        yaxis=dict(title=" Predicted AQI", showgrid=True, gridcolor='#334155', color='#94A3B8', range=[0.5, 5.5],
+        xaxis=dict(title=dict(text="Date",font=dict(color='#22D3EE')), showgrid=False, color='#94A3B8', tickformat="%d-%b\n%H:%M", dtick=43200000),
+        yaxis=dict(title=dict(text=" Predicted AQI",font=dict(color='#22D3EE')), showgrid=True, gridcolor='#334155', color='#94A3B8', range=[0.5, 5.5],
                    )
     )
     
@@ -450,6 +450,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
