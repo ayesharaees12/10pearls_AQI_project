@@ -131,75 +131,36 @@ def train_model():
 
    
 
-# --- 7. UPLOAD TO REGISTRY (WITH HISTORY LOG) ---
+
+    # --- 7. UPLOAD TO REGISTRY  ---
     mr = project.get_model_registry()
-    VERSION_ONE = 1
-    new_metrics = model_metrics[best_model_name]
+    
+    
     input_example = X_train_norm[:1]
-    
-    # Define the History File Name
-    history_file = "metrics_history.json"
-    history_path = os.path.join(artifact_dir, history_file)
-    current_history = []
-    
-    print(f"🔄 Processing Version {VERSION_ONE}...")
-    
-    try:
-        # 1. Try to get the existing V1 to download its history
-        existing_model = mr.get_model("karachi_aqi_best_model", version=VERSION_ONE)
-        
-        # Download the old artifacts to a temp folder to find the JSON
-        print("📥 Downloading previous history...")
-        temp_path = existing_model.download()
-        old_json_path = os.path.join(temp_path, history_file)
-        
-        if os.path.exists(old_json_path):
-            with open(old_json_path, 'r') as f:
-                current_history = json.load(f)
-        
-        # 2. Delete the old V1 (Standard "Smash and Replace")
-        print(f"🗑️ Deleting old Version {VERSION_ONE} to update...")
-        existing_model.delete()
-        
-    except Exception:
-        print(f"✨ Version {VERSION_ONE} not found. Creating fresh history.")
-    
-    # 3. Add TODAY'S entry to the history
-    new_entry = {
-        "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "model": best_model_name,
-        "rmse": new_metrics["RMSE"],
-        "mae": new_metrics["MAE"],
-        "r2": new_metrics["R2"]
-    }
-    current_history.append(new_entry)
-    
-    # 4. Save the updated JSON list into the artifact folder
-    with open(history_path, 'w') as f:
-        json.dump(current_history, f, indent=4)
-    
-    print(f"📝 History updated! Total runs saved: {len(current_history)}")
-    
-    # 5. Create and Save the New Model (containing the history file)
+    new_metrics = model_metrics[best_model_name]
+
+    print(f"🚀 Saving {best_model_name} to Model Registry...")
+
+    # Create the Model Object (Without hardcoding 'version')
     if best_model_name == "LSTM":
         hw_model = mr.tensorflow.create_model(
             name="karachi_aqi_best_model",
-            version=VERSION_ONE,
-            metrics=new_metrics, # This shows ONLY today's score on the main UI
+            metrics=new_metrics,
             input_example=input_example,
-            description=f"Latest: {best_model_name} (History in {history_file})"
+            description=f"Run Date: {datetime.now().strftime('%Y-%m-%d')} | Algo: {best_model_name}"
         )
     else:
         hw_model = mr.sklearn.create_model(
             name="karachi_aqi_best_model",
-            version=VERSION_ONE,
             metrics=new_metrics,
             input_example=input_example,
-            description=f"Latest: {best_model_name} (History in {history_file})"
+            description=f"Run Date: {datetime.now().strftime('%Y-%m-%d')} | Algo: {best_model_name}"
         )
-    
+
+    # Save it 
     hw_model.save(artifact_dir)
-    print(f"✅ Version {VERSION_ONE} saved with full history log!")
+    
+    print("✅ Model saved  in the Registry.")
     print("✅ Training Pipeline Finished.")
 
 if __name__ == "__main__":
