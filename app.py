@@ -15,6 +15,7 @@ import plotly.express as px
 from dotenv import load_dotenv
 from pathlib import Path
 import math
+import plotly.graph_objects as go 
 
 # ────────────────────────────────────────────────
 # 1. CONFIGURATION
@@ -187,31 +188,32 @@ except Exception as e:
 # ─────────────────────────────────────────────────────────────
 # 5. SIDEBAR: STATIC SAFETY GUIDE (Blue Box Style)
 # ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# 5. SIDEBAR: STATIC SAFETY GUIDE (Compact & Uniform)
+# ─────────────────────────────────────────────────────────────
 with st.sidebar:
     st.divider()
     st.markdown("### 🏥 Health Guide Reference")
     
-    # ONE Big Blue Box with all details
+    # We use <br> tags or double-spacing to force tight lines
     st.info("""
-    **🟢 AQI LEVEL 1: Good**
-    *Safe for all outdoor activities.*
+    **🟢 AQI Level 1: Good** Safe for all outdoor activities.
+    
     ---
-    **🟡 AQI LEVEL 2: Moderate**
-    *Sensitive groups (asthma/elderly) should limit exertion.*
+    **🟡 AQI Level 2: Moderate** Sensitive groups (asthma/elderly) should limit exertion.
+    
     ---
-    **🟠 AQI LEVEL 3: Sensitive**
-    *Children & elderly should reduce outdoor play.*
+    **🟠 AQI Level 3: Sensitive** Children & elderly should reduce outdoor play.
+    
     ---
-    **🔴 AQI LEVEL 4: Unhealthy**
-    *Wear a mask. Avoid outdoor exercise completely.*
+    **🔴 AQI Level 4: Unhealthy** Wear a mask. Avoid outdoor exercise completely.
+    
     ---
-    **☠️ AQI Level 5: Hazardous**
-    *Emergency conditions. Stay indoors! Serious health risk.*
+    **☠️ AQI Level 5: Hazardous** Emergency conditions. Stay indoors! Serious health risk.
     """)
     
-    # FIX: This line is now indented exactly the same as st.info above
+    # System Update Time
     st.info("System Last Updated: " + datetime.now().strftime("%d-%b %H:%M"))
- 
 # ────────────────────────────────────────────────
 # 5. LIVE AQI HEADER
 # ────────────────────────────────────────────────
@@ -256,9 +258,15 @@ if not df_recent.empty:
     # ----------------------------------------------------
     # GRAPH 1: 72-HOUR FORECAST
     # ----------------------------------------------------
+    # ─────────────────────────────────────────────────────────────
+    # FORECAST CHART (Your Logic + New Neon Style)
+    # ─────────────────────────────────────────────────────────────
+
+
     st.divider()
     st.subheader("🗓️ Next 3 Days Forecast")
     
+    # 1. GENERATE PREDICTIONS (Keep your exact logic)
     predictions = []
     feature_cols = [
         'pm2_5', 'pm10', 'nitrogen_dioxide', 'ozone', 'sulphor_dioxide',
@@ -266,18 +274,24 @@ if not df_recent.empty:
         'precipitation_mm', 'year', 'month', 'day', 'hour','temp_humid_interaction', 'wind_pollution_interaction',
         'aqi_lag_1', "aqi_roll_max_24h"
     ]
+    
+    # Grab the very last row of actual data to start the loop
+    last_row = df_recent.iloc[-1].copy() 
     current_time_sim = datetime.now()
     
     for i in range(1, 74):
         input_data = last_row[feature_cols].fillna(0).values.reshape(1, -1)
         input_scaled = scaler.transform(input_data)
         base_pred = model.predict(input_scaled)[0]
+        
+        # Add small variation to make the line look natural
         variation = np.random.uniform(0.95, 1.05)
         final_pred = max(1, min(5, base_pred * variation))
         
         target_time = current_time_sim + timedelta(hours=i)
         predictions.append({"datetime": target_time, "aqi": final_pred})
         
+        # Update lag features for the next step
         last_row["aqi_lag_1"] = final_pred
         last_row["hour"] = target_time.hour
         last_row["day"] = target_time.day
@@ -287,19 +301,46 @@ if not df_recent.empty:
         
     forecast_df = pd.DataFrame(predictions)
     
-    fig_forecast = px.line(forecast_df, x="datetime", y="aqi", 
-                           template="plotly_dark", 
-                           markers=False)
-    
-    fig_forecast.update_traces(line_color="#06B6D4", line_width=4)
-    fig_forecast.update_layout(
-        height=350, 
-        yaxis=dict(range=[0.5, 5.5], title="Predicted AQI", showgrid=True, gridcolor='#334155'),
-        xaxis=dict(title=None, showgrid=True),
+    # 2. PLOT WITH NEON POINTERS (The New Part)
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=forecast_df['datetime'],  
+        y=forecast_df['aqi'],       
+        mode='lines+markers',     # 👈 Adds the Pointers
+        name='Predicted AQI',
+        line=dict(color='#22D3EE', width=3), # Neon Cyan Line
+        marker=dict(
+            size=7,
+            color='#1E293B', # Dark center (matches bg)
+            line=dict(width=2, color='#22D3EE') # Cyan border ring
+        ),
+        hovertemplate='<b>Time:</b> %{x|%H:%M}<br><b>AQI:</b> %{y:.1f}<extra></extra>'
+    ))
+
+    # Styling for Dark Theme
+    fig.update_layout(
         plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)'
+        paper_bgcolor='rgba(0,0,0,0)',
+        xaxis=dict(
+            showgrid=False, 
+            color='#94A3B8',
+            showline=False
+        ),
+        yaxis=dict(
+            showgrid=True, 
+            gridcolor='#334155', 
+            color='#94A3B8',
+            range=[0.5, 5.5], 
+            tickvals=[1, 2, 3, 4, 5],
+            ticktext=["1 (Good)", "2 (Mod)", "3 (Sens)", "4 (Unh)", "5 (Haz)"]
+        ),
+        margin=dict(l=10, r=10, t=30, b=10),
+        height=350,
+        showlegend=False
     )
-    st.plotly_chart(fig_forecast, use_container_width=True)
+
+    st.plotly_chart(fig, use_container_width=True)
 
     # ----------------------------------------------------
     # ----------------------------------------------------
@@ -432,6 +473,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
