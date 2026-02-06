@@ -408,38 +408,52 @@ if not df_recent.empty:
     # ─────────────────────────────────────────────────────────────
     # 3-DAY SUMMARY TABLE (Excludes Today)
     # ─────────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────
+    # 3-DAY SUMMARY TABLE (Fixed Indentation & Syntax)
+    # ─────────────────────────────────────────────────────────────
     st.divider(); st.subheader("📊 3-Day Forecast Summary")
 
+    # Check if predictions exist before trying to make a table
     if 'predictions' in locals() and predictions:
-        # 1. Define 'today' explicitly to avoid errors
-        today = (datetime.now()+ timedelta(hours=5)).date()
         
-        # 2. Process Data (Safe Chain)
-        daily = (pd.DataFrame(predictions)
-                 .assign(Date=lambda x: x['datetime'].dt.date)
-                 .groupby('Date')['aqi'].mean().reset_index()
-                 .query('Date > @today')  # 👈 Symbol '>' strictly excludes Today
-                 .rename(columns={'Date': 'Forecast Date', 'aqi': 'AQI Level'}))
+        # 1. Define 'Today' (Karachi Time: UTC+5)
+        today = (datetime.now() + timedelta(hours=5)).date()
 
-        # 3. Style & Display
+        # 2. Create Dataframe -> Filter -> Group -> Rename
+        daily_summary = pd.DataFrame(predictions)
+        daily_summary['Date'] = pd.to_datetime(daily_summary['datetime']).dt.date
+        
+        # Filter: strictly greater than today (Excludes current day)
+        daily_summary = daily_summary[daily_summary['Date'] > today]
+        
+        # Group by Date and calculate mean AQI
+        daily_summary = daily_summary.groupby('Date')['aqi'].mean().reset_index()
+        daily_summary.columns = ['Forecast Date', 'AQI Level']
+
+        # 3. Apply Styling
+        styled_df = daily_summary.style.set_properties(**{
+            'background-color': '#1E293B',  
+            'color': '#E2E8F0',             
+            'border-color': '#475569'       
+         })
+            # .background_gradient(
+        #     cmap="RdYlGn_r", subset=['AQI Level'], vmin=1, vmax=5
+        # )
+
+        # 4. Display Table (Fixed Syntax Error here)
         st.dataframe(
-            daily.style.set_properties(**{'background-color': '#1E293B', 'color': '#E2E8F0', 'border-color': '#475569'})
-                 .background_gradient(cmap="RdYlGn_r", subset=['AQI Level'], vmin=1, vmax=5),
-            use_container_width=True, hide_index=True,
+            styled_df,
+            use_container_width=True,
+            hide_index=True,
             column_config={
                 "Forecast Date": st.column_config.DateColumn("📅 Date", format="DD-MMM-YYYY"),
-                "AQI Level": st.column_config.NumberColumn("💨 Avg AQI", format="%.1f")
+                "AQI Level": st.column_config.NumberColumn("💨 Avg AQI", format="%.1f") # 👈 Fixed this line
             }
         )
+
     else:
+        # This runs only if no predictions exist
         st.warning("⚠️ No data available to generate predictions.")
-
-
-
-
-
-
-
 
 
 
