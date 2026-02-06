@@ -188,41 +188,69 @@ except Exception as e:
 # 5. SIDEBAR EXTRAS (Run this OUTSIDE the try block)
 # ─────────────────────────────────────────────────────────────
 # This ensures the sidebar updates even if the main logic had a minor issue
+# ─────────────────────────────────────────────────────────────
+# 5. SIDEBAR: SAFETY MEASURES (Dynamic Box)
+# ─────────────────────────────────────────────────────────────
 with st.sidebar:
     st.divider()
-    
-    # 1. ABOUT SECTION
-    with st.expander("ℹ️ About Project"):
-        st.markdown("""
-        **Karachi AQI Forecaster**
-        
-        Predictions generated via **End-to-End MLOps Pipeline** on Hopsworks.
-        
-        - **Model:** Random Forest
-        - **Update:** Hourly
-        - **Source:** OpenWeatherMap
-        """)
+    st.markdown("### 🛡️ Safety Measures")
 
-    # 2. HEALTH GUIDE
-    st.markdown("### 🏥 Health Advice")
-    
-    # We check if df_recent exists and is not empty
-    # (It is defined in the try block, so it should be available here)
+    # Check if we have data
     if 'df_recent' in locals() and not df_recent.empty:
         latest_aqi = df_recent['aqi'].iloc[-1]
         
+        # LEVEL 1: GOOD
         if latest_aqi <= 1:
-            st.success("🟢 **Safe:** Enjoy the outdoors!")
+            st.success("✅ **AQI Level 1: Good**")
+            st.markdown("""
+            **Status:** Air quality is satisfactory.
+            - 🏃 **Outdoors:** Perfect for jogging & sports.
+            - 🏠 **Home:** Open windows for fresh air.
+            - 😷 **Mask:** Not required.
+            """)
+            
+        # LEVEL 2: MODERATE
         elif latest_aqi == 2:
-            st.warning("🟡 **Moderate:** Sensitive groups limit exertion.")
+            st.warning("⚠️ **AQI Level 2: Moderate**")
+            st.markdown("""
+            **Status:** Acceptable for most people.
+            - 🏃 **Outdoors:** Okay for healthy adults.
+            - 🫁 **Sensitive Groups:** Reduce prolonged exercise.
+            - 😷 **Mask:** Recommended for coughing/asthma.
+            """)
+            
+        # LEVEL 3: UNHEALTHY FOR SENSITIVE GROUPS
         elif latest_aqi == 3:
-            st.warning("🟠 **Sensitive:** Kids/Elderly stay inside.")
+            st.warning("🧡 **AQI Level 3: Caution**")
+            st.markdown("""
+            **Status:** Risk for children & elderly.
+            - 🚫 **Kids:** Limit outdoor playtime.
+            - 🏃 **Exercise:** Go easy, take breaks.
+            - 😷 **Mask:** Wear a mask if you feel irritation.
+            """)
+            
+        # LEVEL 4: UNHEALTHY
         elif latest_aqi == 4:
-            st.error("🔴 **Unhealthy:** Wear a mask outside.")
+            st.error("🔴 **AQI Level 4: Unhealthy**")
+            st.markdown("""
+            **Status:** Health effects for everyone.
+            - 🛑 **Outdoors:** Avoid jogging/running.
+            - 🏠 **Home:** Close windows, use Air Purifier.
+            - 😷 **Mask:** **Mandatory** for everyone outside.
+            """)
+            
+        # LEVEL 5: HAZARDOUS
         else: 
-            st.error("☠️ **Hazardous:** **Emergency conditions.** Stay indoors.")
+            st.error("☠️ **AQI Level 5: Hazardous**")
+            st.markdown("""
+            **Status:** Emergency conditions.
+            - 🚫 **Outdoors:** **DO NOT GO OUTSIDE.**
+            - 🏠 **Home:** Seal windows/doors completely.
+            - 🏥 **Health:** Seek medical help for breathing issues.
+            """)
+            
     else:
-        st.info("Waiting for data...")
+        st.info("⏳ Waiting for data to load...")
  
 # ────────────────────────────────────────────────
 # 5. LIVE AQI HEADER
@@ -444,6 +472,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
