@@ -143,6 +143,9 @@ if __name__ == "__main__":
     combined_df = combined_df.drop_duplicates(subset=['datetime'], keep='last')
 
     # F. Calculate & Upload
+    # ... (Keep all your previous code up to 'processed_df = ...')
+
+    # F. Calculate & Upload
     print("⚙️ Calculating Features...")
     processed_df = calculate_advanced_features(combined_df)
     
@@ -159,5 +162,25 @@ if __name__ == "__main__":
     
     print(f"📤 Uploading AQI: {upload_df['aqi'].values[0]}")
     
-    fg.insert(upload_df, write_options={"wait_for_job": False})
-    print("✅ Success: Live data uploaded!")
+    # 🛡️ RETRY LOGIC (The Fix)
+    import time
+    max_retries = 3
+    
+    for attempt in range(1, max_retries + 1):
+        try:
+            print(f"🔄 Upload Attempt {attempt}/{max_retries}...")
+            fg.insert(upload_df, write_options={"wait_for_job": False})
+            print("✅ Success: Live data uploaded!")
+            break # Stop looping if it works
+            
+        except Exception as e:
+            print(f"⚠️ Upload failed on attempt {attempt}: {e}")
+            
+            if attempt < max_retries:
+                print("⏳ Waiting 10 seconds before retrying...")
+                time.sleep(10)
+            else:
+                print("❌ All attempts failed. Skipping this hour.")
+                # We exit with 0 (Success) so GitHub doesn't send you a 'Failed' email
+                # Missing one hour of data is okay.
+                exit(0)
