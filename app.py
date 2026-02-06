@@ -270,71 +270,71 @@ if not df_recent.empty:
 
     import plotly.graph_objects as go 
 
-st.divider()
-st.subheader("🗓️ Next 3 Days Forecast")
-
-# 1. GENERATE PREDICTIONS (Logic Preserved)
-predictions = []
-feature_cols = [
-    'pm2_5', 'pm10', 'nitrogen_dioxide', 'ozone', 'sulphor_dioxide',
-    'carbon_monooxide', 'temp_c', 'humidity', 'wind_speed_kph', "day_of_week",
-    'precipitation_mm', 'year', 'month', 'day', 'hour','temp_humid_interaction', 'wind_pollution_interaction',
-    'aqi_lag_1', "aqi_roll_max_24h"
-]
-
-if 'df_recent' in locals() and not df_recent.empty:
-    last_row = df_recent.iloc[-1].copy() 
-else:
-    st.warning("Waiting for data..."); st.stop()
-
-current_time = datetime.now()
-
-for i in range(1, 74):
-    # Predict
-    input_data = last_row[feature_cols].fillna(0).values.reshape(1, -1)
-    base_pred = model.predict(scaler.transform(input_data))[0]
-    final_pred = max(1, min(5, base_pred * np.random.uniform(0.95, 1.05)))
+    st.divider()
+    st.subheader("🗓️ Next 3 Days Forecast")
     
-    # Store & Update
-    target_time = current_time + timedelta(hours=i)
-    predictions.append({"datetime": target_time, "aqi": final_pred})
+    # 1. GENERATE PREDICTIONS (Logic Preserved)
+    predictions = []
+    feature_cols = [
+        'pm2_5', 'pm10', 'nitrogen_dioxide', 'ozone', 'sulphor_dioxide',
+        'carbon_monooxide', 'temp_c', 'humidity', 'wind_speed_kph', "day_of_week",
+        'precipitation_mm', 'year', 'month', 'day', 'hour','temp_humid_interaction', 'wind_pollution_interaction',
+        'aqi_lag_1', "aqi_roll_max_24h"
+    ]
     
-    last_row["aqi_lag_1"] = final_pred
-    last_row["hour"] = target_time.hour
-    last_row["day"] = target_time.day
-    last_row["day_of_week"] = target_time.weekday()
-    last_row["month"] = target_time.month
-    last_row["year"] = target_time.year
+    if 'df_recent' in locals() and not df_recent.empty:
+        last_row = df_recent.iloc[-1].copy() 
+    else:
+        st.warning("Waiting for data..."); st.stop()
     
-forecast_df = pd.DataFrame(predictions)
-markers_df = forecast_df[forecast_df['datetime'].dt.hour.isin([0, 12])]
-
-# 2. PLOT CHART (Compact Style)
-fig = go.Figure()
-
-# Layer A: Neon Spline Line
-fig.add_trace(go.Scatter(
-    x=forecast_df['datetime'], y=forecast_df['aqi'], mode='lines',
-    line=dict(color='#22D3EE', width=3, shape='spline'), hoverinfo='skip'
-))
-
-# Layer B: Checkpoint Markers (Midnight/Noon)
-fig.add_trace(go.Scatter(
-    x=markers_df['datetime'], y=markers_df['aqi'], mode='markers',
-    marker=dict(size=10, color='#1E293B', line=dict(width=2, color='#22D3EE')),
-    hovertemplate='<b>%{x|%A %H:%M}</b><br>AQI: %{y:.1f}<extra></extra>'
-))
-
-# Styling
-fig.update_layout(
-    height=350, margin=dict(l=10, r=10, t=30, b=10), showlegend=False,
-    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-    xaxis=dict(title="📅 Date", showgrid=False, color='#94A3B8', tickformat="%d-%b\n%H:%M", dtick=43200000),
-    yaxis=dict(title="🌫️ Predicted AQI", showgrid=True, gridcolor='#334155', color='#94A3B8', range=[0.5, 5.5],
-               )
-)
-
-st.plotly_chart(fig, use_container_width=True)
+    current_time = datetime.now()
+    
+    for i in range(1, 74):
+        # Predict
+        input_data = last_row[feature_cols].fillna(0).values.reshape(1, -1)
+        base_pred = model.predict(scaler.transform(input_data))[0]
+        final_pred = max(1, min(5, base_pred * np.random.uniform(0.95, 1.05)))
+        
+        # Store & Update
+        target_time = current_time + timedelta(hours=i)
+        predictions.append({"datetime": target_time, "aqi": final_pred})
+        
+        last_row["aqi_lag_1"] = final_pred
+        last_row["hour"] = target_time.hour
+        last_row["day"] = target_time.day
+        last_row["day_of_week"] = target_time.weekday()
+        last_row["month"] = target_time.month
+        last_row["year"] = target_time.year
+        
+    forecast_df = pd.DataFrame(predictions)
+    markers_df = forecast_df[forecast_df['datetime'].dt.hour.isin([0, 12])]
+    
+    # 2. PLOT CHART (Compact Style)
+    fig = go.Figure()
+    
+    # Layer A: Neon Spline Line
+    fig.add_trace(go.Scatter(
+        x=forecast_df['datetime'], y=forecast_df['aqi'], mode='lines',
+        line=dict(color='#22D3EE', width=3, shape='spline'), hoverinfo='skip'
+    ))
+    
+    # Layer B: Checkpoint Markers (Midnight/Noon)
+    fig.add_trace(go.Scatter(
+        x=markers_df['datetime'], y=markers_df['aqi'], mode='markers',
+        marker=dict(size=10, color='#1E293B', line=dict(width=2, color='#22D3EE')),
+        hovertemplate='<b>%{x|%A %H:%M}</b><br>AQI: %{y:.1f}<extra></extra>'
+    ))
+    
+    # Styling
+    fig.update_layout(
+        height=350, margin=dict(l=10, r=10, t=30, b=10), showlegend=False,
+        plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+        xaxis=dict(title="📅 Date", showgrid=False, color='#94A3B8', tickformat="%d-%b\n%H:%M", dtick=43200000),
+        yaxis=dict(title="🌫️ Predicted AQI", showgrid=True, gridcolor='#334155', color='#94A3B8', range=[0.5, 5.5],
+                   )
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
     # ----------------------------------------------------
     # ----------------------------------------------------
     # GRAPH 2: POLLUTANTS (Traffic Light Colors)
@@ -466,6 +466,7 @@ st.plotly_chart(fig, use_container_width=True)
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
