@@ -133,10 +133,10 @@ try:
     metrics = best_model.training_metrics or {}
     
     # CHANGE 2: Show Real Name in Sidebar
-    m_name.write(f"🤖 **Model:** {algo_name}") 
-    m_rmse.markdown(f"📉 RMSE: **{metrics.get('RMSE', 0):.4f}**")
-    m_r2.markdown(f"📈 R2: **{metrics.get('R2', 0):.4f}**")
-    m_mae.markdown(f"📏 MAE: **{metrics.get('MAE', 0):.4f}**")
+    m_name.success(f"🤖 **Model:** {algo_name}") 
+    m_rmse.info(f"📉 RMSE: **{metrics.get('RMSE', 0):.4f}**")
+    m_r2.info(f"📈 R2: **{metrics.get('R2', 0):.4f}**")
+    m_mae.info(f"📏 MAE: **{metrics.get('MAE', 0):.4f}**")
 
     # CHANGE 3: Success message for Model Download
     st.success(f"✅ Best Trained Model Downloaded: {algo_name}")
@@ -472,6 +472,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
