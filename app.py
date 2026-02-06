@@ -193,23 +193,19 @@ with st.sidebar:
     
     # ONE Big Blue Box with all details
     st.info("""
-    **🟢 Level 1: Good**
+    **🟢 AQI LEVEL 1: Good**
     *Safe for all outdoor activities.*
-    
     ---
-    **🟡 Level 2: Moderate**
+    **🟡 AQI LEVEL 2: Moderate**
     *Sensitive groups (asthma/elderly) should limit exertion.*
-    
     ---
-    **🟠 Level 3: Sensitive**
+    **🟠 AQI LEVEL 3: Sensitive**
     *Children & elderly should reduce outdoor play.*
-    
     ---
-    **🔴 Level 4: Unhealthy**
+    **🔴 AQI LEVEL 4: Unhealthy**
     *Wear a mask. Avoid outdoor exercise completely.*
-    
     ---
-    **☠️ Level 5: Hazardous**
+    **☠️ AQI Level 5: Hazardous**
     *Emergency conditions. Stay indoors! Serious health risk.*
     """)
     
@@ -436,6 +432,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
