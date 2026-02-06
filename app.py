@@ -412,7 +412,7 @@ if not df_recent.empty:
 
     if 'predictions' in locals() and predictions:
         # 1. Define 'today' explicitly to avoid errors
-        today = datetime.now().date()
+        today = (datetime.now()+ timedelta(hours=5)).date()
         
         # 2. Process Data (Safe Chain)
         daily = (pd.DataFrame(predictions)
@@ -433,6 +433,7 @@ if not df_recent.empty:
         )
     else:
         st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
