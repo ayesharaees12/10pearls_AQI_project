@@ -399,39 +399,31 @@ if not df_recent.empty:
     # ────────────────────────────────────────────────
     # 7. FORECAST TABLE
     # ────────────────────────────────────────────────
-   st.divider()
-   st.subheader("📊 3-Day Forecast Summary")
+   # ─────────────────────────────────────────────────────────────
+    # 3-DAY SUMMARY TABLE (Compact Version)
+    # ─────────────────────────────────────────────────────────────
+    st.divider(); st.subheader("📊 3-Day Forecast Summary")
 
-if 'predictions' in locals() and predictions:
-    # 1. Process Data in one chain
-    daily = (pd.DataFrame(predictions)
-             .assign(Date=lambda x: x['datetime'].dt.date)
-             .groupby('Date')['aqi'].mean().reset_index()
-             .query('Date > @datetime.now().date()')
-             .rename(columns={'Date': 'Forecast Date', 'aqi': 'AQI Level'}))
+    if 'predictions' in locals() and predictions:
+        # 1. Process Data in one chain
+        daily = (pd.DataFrame(predictions)
+                 .assign(Date=lambda x: x['datetime'].dt.date)
+                 .groupby('Date')['aqi'].mean().reset_index()
+                 .query('Date > @datetime.now().date()')
+                 .rename(columns={'Date': 'Forecast Date', 'aqi': 'AQI Level'}))
 
-    # 2. Style & Display
-    st.dataframe(
-        daily.style.set_properties(**{'background-color': '#1E293B', 'color': '#E2E8F0', 'border-color': '#475569'})
-             .background_gradient(cmap="RdYlGn_r", subset=['AQI Level'], vmin=1, vmax=5),
-        use_container_width=True, hide_index=True,
-        column_config={
-            "Forecast Date": st.column_config.DateColumn("📅 Date", format="DD-MMM-YYYY"),
-            "AQI Level": st.column_config.NumberColumn("💨 Avg AQI", format="%.1f")
-        }
-    )
-else:
-    st.warning("⚠️ No data available to generate predictions.")
-
-
-
-
-
-
-
-
-
-
+        # 2. Style & Display
+        st.dataframe(
+            daily.style.set_properties(**{'background-color': '#1E293B', 'color': '#E2E8F0', 'border-color': '#475569'})
+                 .background_gradient(cmap="RdYlGn_r", subset=['AQI Level'], vmin=1, vmax=5),
+            use_container_width=True, hide_index=True,
+            column_config={
+                "Forecast Date": st.column_config.DateColumn("📅 Date", format="DD-MMM-YYYY"),
+                "AQI Level": st.column_config.NumberColumn("💨 Avg AQI", format="%.1f")
+            }
+        )
+    else:
+        st.warning("⚠️ No data available to generate predictions.")
 
 
 
