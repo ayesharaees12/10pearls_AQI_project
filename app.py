@@ -93,66 +93,44 @@ with st.sidebar:
 st.title("🏙️ Karachi AQI forecasting Dashboard")
 st.markdown("Real-time and 72-hour Air Quality predictions.")
 try:
-    # 1. Connect and Fetch Version 1 (The "Active" Model)
+    # 1. Connect to Hopsworks
     project = hopsworks.login(api_key_value=HOPSWORKS_API_KEY, project=PROJECT_NAME)
     mr = project.get_model_registry()
+
+    # 2. GET ALL VERSIONS of your model
+    print("🔍 Searching for the best model across all versions...")
+    models = mr.get_models("karachi_aqi_best_model")
+
+    # 3. FIND THE CHAMPION (Lowest RMSE)
+    # We loop through V1, V2, V3... and pick the one with the smallest RMSE number
+    best_model = min(models, key=lambda x: x.training_metrics.get("RMSE", 999.0))
     
-    # ⚡ FORCE VERSION 1 ⚡
-    hw_model = mr.get_model(MODEL_NAME, version=1)
+    print(f"🏆 Champion Found: Version {best_model.version} with RMSE {best_model.training_metrics.get('RMSE'):.4f}")
 
-    # 2. Download Artifacts (Model + History File)
-    download_path = hw_model.download()
+    # 4. Download the Champion's Artifacts
+    download_path = best_model.download()
 
-    # 3. Read the History File to find "All-Time Best"
-    json_path = os.path.join(download_path, "metrics_history.json")
-    best_rmse_ever = 999.0
+    # 5. Update Sidebar with Champion's Stats
+    metrics = best_model.training_metrics
+    algo_name = best_model.description.split("|")[-1].strip() if "|" in best_model.description else "Unknown"
+
+    m_name.write(f"🤖 **Model:** {algo_name}")
+    m_rmse.markdown(f"📉 RMSE: **{metrics.get('RMSE', 0):.4f}**")
+    m_r2.markdown(f"📈 R2: **{metrics.get('R2', 0):.4f}**")
+    m_mae.markdown(f"📏 MAE: **{metrics.get('MAE', 0):.4f}**")
     
-    if os.path.exists(json_path):
-        with open(json_path, 'r') as f:
-            history = json.load(f)
-            # Find the lowest RMSE in the entire history list
-            best_rmse_ever = min(entry['rmse'] for entry in history)
-    else:
-        # Fallback if history doesn't exist yet
-        best_rmse_ever = hw_model.training_metrics.get('RMSE', 0.0)
+    st.sidebar.divider()
+    st.sidebar.info(f"Using **Version {best_model.version}** (Best of All Time)")
 
-    # 4. Get Current Run Metrics
-    full_desc = hw_model.description if hw_model.description else "Unknown"
-    if ":" in full_desc:
-        raw_name = full_desc.split(":")[-1].strip()
-        algo_name = raw_name.split("(")[0].strip() # 👈 This cuts off the extra text
-    else:
-        algo_name = full_desc
-
-    metrics = getattr(hw_model, 'training_metrics', {}) or {}
-    curr_rmse = metrics.get('RMSE', 0.0)
-    curr_r2 = metrics.get('R2', 0.0)
-    curr_mae = metrics.get('MAE', 0.0)
-
-    # 5.  SIDEBAR (Current vs Best)
-    m_name.write(f" **Best Model:** {algo_name}")
-    m_rmse.markdown(f"📉 RMSE: **{curr_rmse:.4f}**")
-    m_r2.markdown(f"📈 R2: **{curr_r2:.4f}**")
-    m_mae.markdown(f"📏 MAE: **{curr_mae:.4f}**")
-
-    # # Add the "High Score" display below the current metrics
-    # st.sidebar.divider()
-    # st.sidebar.markdown("### 🏆 All-Time Record")
-    # if curr_rmse <= best_rmse_ever:
-    #     st.sidebar.success(f"🌟 **New Record!** {best_rmse_ever:.4f}")
-    # else:
-    #     st.sidebar.info(f"Best RMSE: **{best_rmse_ever:.4f}**")
-
-    # 6. Load Model & Data (Standard Logic)
+    # 6. Load Model & Data
     scaler = joblib.load(next(Path(download_path).rglob("scaler.pkl")))
     model = joblib.load(next(f for f in Path(download_path).rglob("*.pkl") if "scaler" not in f.name))
     
     fs = project.get_feature_store()
     fg = fs.get_feature_group(name=FG_NAME, version=FG_VERSION)
-    # Use the stable reader we fixed earlier
     df_recent = fg.read(read_options={"use_arrow_flight": False}).tail(1000)
     
-    st.success(f"✅ Loaded Version 1 (Trained on: {algo_name})")
+    st.success(f"✅ Loaded Best Model (Version {best_model.version})")
 
 except Exception as e:
     st.error(f"❌ Connection Error: {e}")
@@ -377,6 +355,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
