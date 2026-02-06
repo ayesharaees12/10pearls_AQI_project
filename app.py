@@ -313,8 +313,8 @@ if not df_recent.empty:
     fig.update_layout(
         height=350, margin=dict(l=10, r=10, t=30, b=10), showlegend=False,
         plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-        xaxis=dict(title=dict(text="Date",font=dict(color='#22D3EE')), showgrid=False, color='#94A3B8', tickformat="%d-%b\n%H:%M", dtick=43200000),
-        yaxis=dict(title=dict(text=" Predicted AQI",font=dict(color='#22D3EE')), showgrid=True, gridcolor='#334155', color='#94A3B8', range=[0.5, 5.5],
+        xaxis=dict(title=dict(text="Date",font=dict(color='#FFFFFF')), showgrid=False, color='#94A3B8', tickformat="%d-%b\n%H:%M", dtick=43200000),
+        yaxis=dict(title=dict(text=" Predicted AQI",font=dict(color='#FFFFFF')), showgrid=True, gridcolor='#334155', color='#94A3B8', range=[0.5, 5.5],
                    )
     )
     
@@ -450,6 +450,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
