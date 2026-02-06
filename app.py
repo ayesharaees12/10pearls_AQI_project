@@ -139,7 +139,7 @@ try:
     m_mae.markdown(f"📏 MAE: **{metrics.get('MAE', 0):.4f}**")
 
     # CHANGE 3: Success message for Model Download
-    st.sidebar.success(f"✅ Best Trained Model Downloaded: {algo_name}")
+    st.success(f"✅ Best Trained Model Downloaded: {algo_name}")
 
     # ─────────────────────────────────────────────────────────────
     # STEP 3: LOAD FILES
@@ -402,6 +402,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
