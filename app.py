@@ -263,6 +263,11 @@ if not df_recent.empty:
     # ─────────────────────────────────────────────────────────────
 
 
+    # ─────────────────────────────────────────────────────────────
+    # FORECAST CHART (Clean Pointers at 12h intervals)
+    # ─────────────────────────────────────────────────────────────
+    import plotly.graph_objects as go 
+
     st.divider()
     st.subheader("🗓️ Next 3 Days Forecast")
     
@@ -276,7 +281,13 @@ if not df_recent.empty:
     ]
     
     # Grab the very last row of actual data to start the loop
-    last_row = df_recent.iloc[-1].copy() 
+    if 'df_recent' in locals() and not df_recent.empty:
+        last_row = df_recent.iloc[-1].copy() 
+    else:
+        # Fallback if no data (prevents crash)
+        st.warning("Waiting for data to generate forecast...")
+        st.stop()
+
     current_time_sim = datetime.now()
     
     for i in range(1, 74):
@@ -284,14 +295,12 @@ if not df_recent.empty:
         input_scaled = scaler.transform(input_data)
         base_pred = model.predict(input_scaled)[0]
         
-        # Add small variation to make the line look natural
         variation = np.random.uniform(0.95, 1.05)
         final_pred = max(1, min(5, base_pred * variation))
         
         target_time = current_time_sim + timedelta(hours=i)
         predictions.append({"datetime": target_time, "aqi": final_pred})
         
-        # Update lag features for the next step
         last_row["aqi_lag_1"] = final_pred
         last_row["hour"] = target_time.hour
         last_row["day"] = target_time.day
@@ -301,31 +310,48 @@ if not df_recent.empty:
         
     forecast_df = pd.DataFrame(predictions)
     
-    # 2. PLOT WITH NEON POINTERS (The New Part)
+    # 2. FILTER DATA FOR POINTERS (Only 00:00 and 12:00)
+    # This creates a smaller dataframe just for the dots
+    markers_df = forecast_df[forecast_df['datetime'].dt.hour.isin([0, 12])]
+
+    # 3. BUILD THE CHART
     fig = go.Figure()
 
+    # LAYER A: The Smooth Line (All Data)
     fig.add_trace(go.Scatter(
         x=forecast_df['datetime'],  
         y=forecast_df['aqi'],       
-        mode='lines+markers',     # 👈 Adds the Pointers
-        name='Predicted AQI',
-        line=dict(color='#22D3EE', width=3), # Neon Cyan Line
-        marker=dict(
-            size=7,
-            color='#1E293B', # Dark center (matches bg)
-            line=dict(width=2, color='#22D3EE') # Cyan border ring
-        ),
-        hovertemplate='<b>Time:</b> %{x|%H:%M}<br><b>AQI:</b> %{y:.1f}<extra></extra>'
+        mode='lines',              # 👈 Line ONLY
+        name='Trend',
+        line=dict(color='#22D3EE', width=3), # Neon Cyan
+        hoverinfo='skip'           # Don't show hover on the line, only dots
     ))
 
-    # Styling for Dark Theme
+    # LAYER B: The Pointers (Only 00:00 & 12:00)
+    fig.add_trace(go.Scatter(
+        x=markers_df['datetime'],  
+        y=markers_df['aqi'],       
+        mode='markers',            # 👈 Markers ONLY
+        name='Checkpoint',
+        marker=dict(
+            size=10,               # Slightly bigger to pop
+            color='#1E293B',       # Dark center
+            line=dict(width=2, color='#22D3EE') # Cyan rim
+        ),
+        hovertemplate='<b>%{x|%A %H:%M}</b><br>AQI Level: %{y:.1f}<extra></extra>'
+    ))
+
+    # 4. STYLING
     fig.update_layout(
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
         xaxis=dict(
             showgrid=False, 
             color='#94A3B8',
-            showline=False
+            showline=False,
+            # Force x-axis to show ticks nicely at 12h intervals
+            tickformat="%d-%b\n%H:%M",
+            dtick=12 * 60 * 60 * 1000 # 12 Hours in milliseconds
         ),
         yaxis=dict(
             showgrid=True, 
@@ -341,7 +367,6 @@ if not df_recent.empty:
     )
 
     st.plotly_chart(fig, use_container_width=True)
-
     # ----------------------------------------------------
     # ----------------------------------------------------
     # GRAPH 2: POLLUTANTS (Traffic Light Colors)
@@ -473,6 +498,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
