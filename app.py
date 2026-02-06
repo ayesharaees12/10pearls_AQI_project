@@ -175,6 +175,41 @@ try:
         print(f"⚠️ Feature Store Read Failed: {e}")
         st.warning("⚠️ Could not load history data. Charts might be empty.")
         df_recent = pd.DataFrame()
+    # ─────────────────────────────────────────────────────────────
+    with st.sidebar:
+        st.divider()
+        
+        # 1. ABOUT SECTION (Collapsible to save space)
+        with st.expander("ℹ️ About Project"):
+            st.markdown("""
+            **Karachi AQI Forecaster**
+            
+            Predictions generated via **End-to-End MLOps Pipeline** on Hopsworks.
+            
+            - **Model:** Random Forest
+            - **Update:** Hourly
+            - **Source:** OpenWeatherMap
+            """)
+
+        # 2. HEALTH GUIDE (Dynamic & Visible)
+        st.markdown("### 🏥 Health Advice")
+        
+        if not df_recent.empty:
+            latest_aqi = df_recent['aqi'].iloc[-1]
+            
+            # Simple Logic for Professional Look
+            if latest_aqi <= 1:
+                st.success("🟢 **Safe:** Enjoy the outdoors!")
+            elif latest_aqi == 2:
+                st.warning("🟡 **Moderate:** Sensitive groups limit exertion.")
+            elif latest_aqi == 3:
+                st.warning("🟠 **Sensitive:** Kids/Elderly stay inside.")
+            elif latest_aqi == 4:
+                st.error("🔴 **Unhealthy:** Wear a mask outside.")
+            else: 
+                st.error("☠️ **Hazardous:** **Emergency conditions.** Stay indoors.")
+        else:
+            st.info("Waiting for data...")
 
 except Exception as e:
     st.error(f"❌ Unexpected Error: {e}")
@@ -402,6 +437,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
