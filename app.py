@@ -347,6 +347,7 @@ if not df_recent.empty:
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
         xaxis=dict(
+            title="Date",
             showgrid=False, 
             color='#94A3B8',
             showline=False,
@@ -355,12 +356,13 @@ if not df_recent.empty:
             dtick=12 * 60 * 60 * 1000 # 12 Hours in milliseconds
         ),
         yaxis=dict(
+            title="Predicted AQI",
             showgrid=True, 
             gridcolor='#334155', 
             color='#94A3B8',
-            range=[0.5, 5.5], 
+            range=[0, 5], 
             tickvals=[1, 2, 3, 4, 5],
-            ticktext=["1 (Good)", "2 (Mod)", "3 (Sens)", "4 (Unh)", "5 (Haz)"]
+            # ticktext=["1 (Good)", "2 (Mod)", "3 (Sens)", "4 (Unh)", "5 (Haz)"]
         ),
         margin=dict(l=10, r=10, t=30, b=10),
         height=350,
@@ -499,6 +501,7 @@ if not df_recent.empty:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
