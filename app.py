@@ -399,7 +399,8 @@ if not df_recent.empty:
     # ────────────────────────────────────────────────
     # 7. FORECAST TABLE
     # ────────────────────────────────────────────────
-   st.divider(); st.subheader("📊 3-Day Forecast Summary")
+   st.divider()
+   st.subheader("📊 3-Day Forecast Summary")
 
 if 'predictions' in locals() and predictions:
     # 1. Process Data in one chain
@@ -421,6 +422,7 @@ if 'predictions' in locals() and predictions:
     )
 else:
     st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
