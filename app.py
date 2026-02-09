@@ -92,7 +92,7 @@ with st.sidebar:
 # 4. SYSTEM LOGIC
 # ────────────────────────────────────────────────
 st.title("🏙️ Karachi AQI forecasting Dashboard")
-st.markdown("Real-time and 72-hour Air Quality predictions.")
+st.markdown("Real-time monitoring and 72-hour AQI forecasting for Karachi")
 try:
     
     # STEP 1: CONNECT TO HOPSWORKS
@@ -399,7 +399,7 @@ if not df_recent.empty:
     with col2:
         st.markdown("""
         **Overview:**
-        This chart summarizes the air quality distribution over the last month.
+        This chart presents the distribution of AQI categories over the past 30 days
         """)
 
     # ─────────────────────────────────────────────────────────────
@@ -446,6 +446,7 @@ if not df_recent.empty:
 
     else:
         st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
