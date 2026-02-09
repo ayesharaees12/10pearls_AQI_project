@@ -226,14 +226,17 @@ status_text, status_color = get_status_ui(live_aqi)
 
 st.markdown(f"""
 <div class="aqi-card">
-    <p style="color: #94A3B8; margin-bottom: 5px;">LIVE Air Quality Index(1-5 scale) </p>
+    <p style="color: #94A3B8; margin-bottom: 5px; font-size: 1.1rem;">
+        LIVE Air Quality Index (1-5 Scale)
+    </p>
     <div style="display: flex; align-items: baseline; gap: 20px;">
-        <p class="big-aqi" style="font-size: 4rem;">{live_aqi or '--'}</p>
-        <p style="font-size: 3.0rem; font-weight: 700; color: {status_color};">({status_text})</p>
+        <p class="big-aqi" style="font-size: 4rem; margin: 0;">{live_aqi or '--'}</p>
+        <p style="font-size: 2.5rem; font-weight: 700; color: {status_color}; margin: 0;">
+            {status_text}
+        </p>
     </div>
 </div>
 """, unsafe_allow_html=True)
-
 # ────────────────────────────────────────────────
 # 6. GRAPHS
 # ────────────────────────────────────────────────
@@ -446,6 +449,7 @@ if not df_recent.empty:
 
     else:
         st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
