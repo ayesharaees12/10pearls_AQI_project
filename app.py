@@ -443,12 +443,13 @@ if not df_recent.empty:
             hide_index=True,
             column_config={
                 "Forecast Date": st.column_config.DateColumn("📅 Date", format="DD-MMM-YYYY"),
-                "AQI Level": st.column_config.NumberColumn("💨 Avg AQI", format="%.1f")
+                "AQI Level": st.column_config.NumberColumn("💨 Avg AQI", format="%.2f")
             }
         )
 
     else:
         st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
