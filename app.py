@@ -115,7 +115,7 @@ try:
     # EXTRACT REAL NAME (Clean up the description to find 'RandomForest' etc.)
     desc = best_model.description if best_model.description else "Unknown"
     if "|" in desc:
-        # Format: "Run Date: ... | Algo: RandomForest"
+        # Format: "Run Date: ... | Model: RandomForest"
         algo_name = desc.split("|")[-1].strip()
     elif ":" in desc:
         # Format: "Best Model: RandomForest (History...)"
@@ -381,7 +381,14 @@ if not df_recent.empty:
         fig_pie = px.pie(pie_data, values='Count', names='Category', hole=0.5,
                          color='Category', color_discrete_map=color_map,
                          template="plotly_dark")
-        fig_pie.update_traces(textinfo='percent+label', textfont_size=14)
+        
+        # FIX: Added textposition='inside' to force labels into the slices
+        fig_pie.update_traces(
+            textinfo='percent+label', 
+            textfont_size=14,
+            textposition='inside'  # 👈 This forces "Fair" to stay inside
+        )
+        
         fig_pie.update_layout(
             showlegend=False, 
             margin=dict(t=0, b=0, l=0, r=0), 
@@ -389,7 +396,6 @@ if not df_recent.empty:
             paper_bgcolor='rgba(0,0,0,0)'
         )
         st.plotly_chart(fig_pie, use_container_width=True)
-        
     with col2:
         st.markdown("""
         **Overview:**
@@ -440,6 +446,7 @@ if not df_recent.empty:
 
     else:
         st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
