@@ -115,7 +115,7 @@ try:
     # EXTRACT REAL NAME (Clean up the description to find 'RandomForest' etc.)
     desc = best_model.description if best_model.description else "Unknown"
     if "|" in desc:
-        # Format: "Run Date: ... | Model: RandomForest"
+        # Format: "Run Date: ... | algo: RandomForest"
         algo_name = desc.split("|")[-1].strip()
     elif ":" in desc:
         # Format: "Best Model: RandomForest (History...)"
@@ -446,6 +446,7 @@ if not df_recent.empty:
 
     else:
         st.warning("⚠️ No data available to generate predictions.")
+
 
 
 
