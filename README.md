@@ -1,5 +1,5 @@
 # 10pearls_AQI_project
-🌍 Karachi AQI Forecasting – End-to-End MLOps Pipeline
+🌍Karachi AQI Forecasting – End-to-End MLOps Pipeline
 
 An end-to-end MLOps-based Air Quality Index (AQI) forecasting system designed to monitor and predict air quality levels for Karachi, Pakistan.
 The project integrates real-time data ingestion, automated feature engineering, model training, deployment, and visualization using modern MLOps tools.
@@ -170,6 +170,4 @@ Extend system to multiple cities
 
 
 
-Ayesha
-Computational Mathematics Undergraduate
-Interests: Data Science, Machine Learning, MLOps
+
