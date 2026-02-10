@@ -120,68 +120,25 @@ https://10pearlsaqiproject-x44hvmjyqmc3qohlndqqrf.streamlit.app/
 
 ---
 
-## 📁 Project Structure
-
+**📁 Project Structure**
 ├── .github/workflows/
-
----
-
-│ ├── daily_model_training.yml
-
----
-│ ├── daily_retrain.yml
-
----
-
+│   ├── daily_model_training.yml
+│   ├── daily_retrain.yml
 ├── notebook/
-
----
-
-│ ├── eda_preprocessing.ipynb
-
----
-
-│ ├── feature_engineering.ipynb
-
----
-
-│ ├── shap.ipynb
-
----
+│   ├── eda_preprocessing.ipynb
+│   ├── feature_engineering.ipynb
+│   ├── shap.ipynb
 ├── vscode/
-
----
-
-│ ├── fetch.py
-
----
-
-│ ├── hopsworks_script.py
-
----
-
-│ ├── train.py
-
----
-
----
+│   ├── fetch.py
+│   ├── hopsworks_script.py
+│   ├── train.py
 ├── src/
-│ ├── feature_pipeline.py
-│ ├── model_training.py
-
---- 
-
+│   ├── feature_pipeline.py
+│   ├── model_training.py
 ├── app.py
-
----
-
 ├── README.md
-
----
-
 └── requirements.txt
 
----
 
 ##  Key Highlights
 
