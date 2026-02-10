@@ -125,17 +125,28 @@ https://10pearlsaqiproject-x44hvmjyqmc3qohlndqqrf.streamlit.app/
 ├── .github/workflows/
 │ ├── daily_model_training.yml
 │ ├── daily_retrain.yml
+
+---
+
 ├── notebook/
 │ ├── eda_preprocessing.ipynb
 │ ├── feature_engineering.ipynb
 │ ├── shap.ipynb
+
+---
+
 ├── vscode/
 │ ├── fetch.py
 │ ├── hopsworks_script.py
 │ ├── train.py
+
+---
 ├── src/
 │ ├── feature_pipeline.py
 │ ├── model_training.py
+
+--- 
+
 ├── app.py
 ├── README.md
 └── requirements.txt
