@@ -1,8 +1,8 @@
-Karachi AQI Forecasting – End-to-End MLOps Pipeline
+# Karachi AQI Forecasting – End-to-End MLOps Pipeline
 An end-to-end MLOps-based Air Quality Index (AQI) forecasting system designed to monitor and predict air quality levels for Karachi, Pakistan.
 The project integrates real-time data ingestion, automated feature engineering, model training, deployment, and visualization using modern MLOps tools.
 
-Project Overview
+# Project Overview
 This project implements a fully automated machine learning pipeline that:
 •	Continuously collects real-time and historical AQI & weather data.
 •	Performs data preprocessing and feature engineering.
@@ -11,7 +11,7 @@ This project implements a fully automated machine learning pipeline that:
 •	Serves predictions through an interactive Streamlit dashboard.
 The system provides live AQI monitoring and 72-hour air quality forecasts.
 
-Architecture
+# Architecture
 APIs (AQI & Weather)
 ↓
 Data Preprocessing & Feature Engineering
@@ -24,44 +24,44 @@ GitHub Actions (Automation)
 ↓
 Streamlit Dashboard (Deployment)
 
-Data Sources
-🌫️ Air Quality Data
-•	Source: OpenWeatherMap Air Pollution API
-•	Data: AQI levels and pollutant concentrations
-o	PM2.5, PM10, CO, NO₂, SO₂, O₃
-•	Frequency: Real-time updates
-🌦️ Meteorological Data
-• Source: Open-Meteo Historical Archive
-• Features:
+# Data Sources
+## 🌫️ Air Quality Data
+•	**Source**: OpenWeatherMap Air Pollution API
+•	**Data**: AQI levels and pollutant concentrations
+    o	PM2.5, PM10, CO, NO₂, SO₂, O₃
+•	**Frequency**: Real-time updates
+## 🌦️ Meteorological Data
+• **Source**: Open-Meteo Historical Archive
+• **Features** :
 •	Temperature
 •	Wind speed
 •	Humidity
 •	Atmospheric pressure
 
-Machine Learning
-•Model Used: Random Forest Regressor
-•Prediction Target: AQI Level (1–5 scale)
-•Evaluation Metrics:
+# Machine Learning
+•**Model Used:** Random Forest Regressor
+•**Prediction Target:** AQI Level (1–5 scale)
+•**Evaluation Metrics:**
 o	RMSE
 o	MAE
 o	R² Score
 The best-performing model is automatically registered and fetched from the model registry.
 
-MLOps & Automation
-🔹 Feature Store
-•	Tool: Hopsworks
+# MLOps & Automation
+## 🔹 Feature Store
+•	**Tool:** Hopsworks
 •	Stores cleaned and engineered features
 •	Automatically validates schema using input_example
-🔹 CI/CD Automation
-•	Tool: GitHub Actions
-•	Feature Pipeline:
+## 🔹 CI/CD Automation
+•	**Tool**: GitHub Actions
+•	**Feature Pipeline:**
 o	Runs every hour to ingest fresh data
-•	Training Pipeline:
+•**Training Pipeline:**
 o	Runs daily to retrain and register the best model
 
-Dashboard (Streamlit)
-🔗 Live App: https://10pearlsaqiproject-x44hvmjyqmc3qohlndqqrf.streamlit.app/
-Dashboard Features:
+# Dashboard (Streamlit)
+**🔗 Live App:** https://10pearlsaqiproject-x44hvmjyqmc3qohlndqqrf.streamlit.app/
+**Dashboard Features:**
 •	Live AQI status with health category
 •	72-hour AQI forecast visualization
 •	Pollutant concentration breakdown
@@ -69,15 +69,15 @@ Dashboard Features:
 •	Model performance metrics
 •	Health recommendations based on AQI level
 
-Tech Stack
-• Programming: Python
-• ML: Scikit-learn
-•MLOps: Hopsworks, GitHub Actions
-• APIs: OpenWeatherMap, Open-Meteo
-• Visualization: Streamlit, Matplotlib
-•Deployment: Streamlit Cloud
+# Tech Stack
+• **Programming:** Python
+• ?**ML:** Scikit-learn
+•**MLOps:** Hopsworks, GitHub Actions
+• **APIs:** OpenWeatherMap, Open-Meteo
+• **Visualization:** Streamlit, Matplotlib
+•**Deployment:** Streamlit Cloud
 
-Project Structure
+# Project Structure
 ├.github/workflows/
  │   ├daily_model_training.yml
  │   ├ daily_retrain.yml
@@ -96,12 +96,12 @@ Project Structure
 ├README.md
 └── requirements.txt
 
-Key Highlights
+# Key Highlights
 •End-to-end production-ready MLOps pipeline
 •Real-time data ingestion & monitoring
 •Automated retraining & model versioning
- •Feature store integration
- • Deployed and publicly accessible dashboard
+•Feature store integration
+•Deployed and publicly accessible dashboard
 
 
 Future Improvements
