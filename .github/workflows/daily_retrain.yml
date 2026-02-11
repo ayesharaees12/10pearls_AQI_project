@@ -2,7 +2,7 @@ name: Daily Future Pipeine
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Runs at minute 0 of every hour
+    - cron: '15 * * * *'  # Runs at minute 0 of every hour
   workflow_dispatch:      # Allows you to click a button to run it manually
 
 jobs:
