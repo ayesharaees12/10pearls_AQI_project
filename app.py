@@ -336,7 +336,7 @@ st.dataframe(
     daily_df,
     column_config={
         "Date": st.column_config.DateColumn("Date", format="DD MMMM YYYY"),
-        "aqi": st.column_config.NumberColumn("Worst AQI", help="The highest AQI level predicted for this day"),
+        "aqi": st.column_config.NumberColumn("Predicted AQI", help="The highest AQI level predicted for this day"),
     },
     hide_index=True,
     use_container_width=True
@@ -395,6 +395,7 @@ st.plotly_chart(fig_bar, use_container_width=True)
 # ----------------------------------------------------
 st.divider()
 st.subheader("📅 Past 30 Days Overview")
+df_recent['datetime'] = pd.to_datetime(df_recent['datetime']).dt.tz_localize(None)
 
 # 1. Filter last 30 days
 cutoff_date = datetime.now() - timedelta(days=30)
@@ -452,6 +453,7 @@ with col2:
     ### **Monthly Report:**
     This chart summarizes the air quality distribution over the last month.
     """)
+
 
 
 
