@@ -344,113 +344,114 @@ st.dataframe(
 # ----------------------------------------------------
     # GRAPH 2: POLLUTANTS BREAKDOWN (Traffic Light Colors)
     # ----------------------------------------------------
-    st.divider()
-    st.subheader("🧪 Pollutant Breakdown")
-    
-    # Get the most recent data row
-    latest = df_recent.iloc[-1]
-    
-    # 1. Create Dataframe for plotting
-    poll_df = pd.DataFrame({
-        "Pollutant": ["PM2.5", "PM10", "NO2", "O3", "SO2", "CO"],
-        "Value": [
-            latest['pm2_5'], 
-            latest['pm10'], 
-            latest['nitrogen_dioxide'], 
-            latest['ozone'], 
-            latest['sulphor_dioxide'], 
-            latest['carbon_monooxide']
-        ]
-    }).sort_values("Value")
+st.divider()
+st.subheader("🧪 Pollutant Breakdown")
 
-    # 2. Define Function to Assign Colors based on Severity
-    def get_color(val):
-        if val < 50: return "#4ADE80"   # Green (Good)
-        elif val < 100: return "#FACC15" # Yellow (Fair)
-        elif val < 200: return "#FB923C" # Orange (Moderate)
-        else: return "#F87171"           # Red (High/Danger)
+# Get the most recent data row
+latest = df_recent.iloc[-1]
 
-    # 3. Apply color logic
-    poll_df["Color"] = poll_df["Value"].apply(get_color)
+# 1. Create Dataframe for plotting
+poll_df = pd.DataFrame({
+    "Pollutant": ["PM2.5", "PM10", "NO2", "O3", "SO2", "CO"],
+    "Value": [
+        latest['pm2_5'], 
+        latest['pm10'], 
+        latest['nitrogen_dioxide'], 
+        latest['ozone'], 
+        latest['sulphor_dioxide'], 
+        latest['carbon_monooxide']
+    ]
+}).sort_values("Value")
 
-    # 4. Create Horizontal Bar Chart
-    fig_bar = px.bar(
-        poll_df, x="Value", y="Pollutant", orientation='h', 
-        template="plotly_dark", text="Value"
+# 2. Define Function to Assign Colors based on Severity
+def get_color(val):
+    if val < 50: return "#4ADE80"   # Green (Good)
+    elif val < 100: return "#FACC15" # Yellow (Fair)
+    elif val < 200: return "#FB923C" # Orange (Moderate)
+    else: return "#F87171"           # Red (High/Danger)
+
+# 3. Apply color logic
+poll_df["Color"] = poll_df["Value"].apply(get_color)
+
+# 4. Create Horizontal Bar Chart
+fig_bar = px.bar(
+    poll_df, x="Value", y="Pollutant", orientation='h', 
+    template="plotly_dark", text="Value"
+)
+
+# 5. Style the bars
+fig_bar.update_traces(marker_color=poll_df["Color"], texttemplate='%{text:.1f}')
+fig_bar.update_layout(
+    height=400, 
+    plot_bgcolor='rgba(0,0,0,0)',
+    paper_bgcolor='rgba(0,0,0,0)',
+    xaxis=dict(showgrid=True, gridcolor='#334155', title="Concentration (µg/m³)"),
+    yaxis=dict(title=None)
+)
+st.plotly_chart(fig_bar, use_container_width=True)
+
+# ----------------------------------------------------
+# GRAPH 3: PAST 30 DAYS PIE CHART
+# ----------------------------------------------------
+st.divider()
+st.subheader("📅 Past 30 Days Overview")
+
+# 1. Filter last 30 days
+cutoff_date = datetime.now() - timedelta(days=30)
+history_df = df_recent[df_recent['datetime'] >= cutoff_date].copy()
+
+# 2. Categorize AQI
+def get_cat(val):
+    val = round(val)
+    if val <= 1: return "Good"
+    if val <= 2: return "Fair"
+    if val <= 3: return "Moderate"
+    if val <= 4: return "Poor"
+    return "Hazardous"
+
+history_df['Category'] = history_df['aqi'].apply(get_cat)
+pie_data = history_df['Category'].value_counts().reset_index()
+pie_data.columns = ['Category', 'Count']
+
+# 3. Define Colors
+color_map = {
+    "Good": "#4ADE80",      # Green
+    "Fair": "#FACC15",      # Yellow
+    "Moderate":"#FB923C",   # Orange
+    "Poor": "#F87171",      # Red
+    "Hazardous": "#C084FC"  # Purple
+}
+
+# 4. Layout: Chart on Left, Text on Right
+col1, col2 = st.columns([1, 1])
+
+with col1:
+    fig_pie = px.pie(
+        pie_data, values='Count', names='Category', hole=0.5,
+        color='Category', color_discrete_map=color_map,
+        template="plotly_dark"
     )
     
-    # 5. Style the bars
-    fig_bar.update_traces(marker_color=poll_df["Color"], texttemplate='%{text:.1f}')
-    fig_bar.update_layout(
-        height=400, 
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        xaxis=dict(showgrid=True, gridcolor='#334155', title="Concentration (µg/m³)"),
-        yaxis=dict(title=None)
+    # Force text inside slices
+    fig_pie.update_traces(
+        textinfo='percent+label', 
+        textfont_size=14,
+        textposition='inside' 
     )
-    st.plotly_chart(fig_bar, use_container_width=True)
+    
+    fig_pie.update_layout(
+        showlegend=False, 
+        margin=dict(t=0, b=0, l=0, r=0), 
+        height=300,
+        paper_bgcolor='rgba(0,0,0,0)'
+    )
+    st.plotly_chart(fig_pie, use_container_width=True)
+    
+with col2:
+    st.markdown("""
+    ### **Monthly Report:**
+    This chart summarizes the air quality distribution over the last month.
+    """)
 
-    # ----------------------------------------------------
-    # GRAPH 3: PAST 30 DAYS PIE CHART
-    # ----------------------------------------------------
-    st.divider()
-    st.subheader("📅 Past 30 Days Overview")
-    
-    # 1. Filter last 30 days
-    cutoff_date = datetime.now() - timedelta(days=30)
-    history_df = df_recent[df_recent['datetime'] >= cutoff_date].copy()
-    
-    # 2. Categorize AQI
-    def get_cat(val):
-        val = round(val)
-        if val <= 1: return "Good"
-        if val <= 2: return "Fair"
-        if val <= 3: return "Moderate"
-        if val <= 4: return "Poor"
-        return "Hazardous"
-    
-    history_df['Category'] = history_df['aqi'].apply(get_cat)
-    pie_data = history_df['Category'].value_counts().reset_index()
-    pie_data.columns = ['Category', 'Count']
-    
-    # 3. Define Colors
-    color_map = {
-        "Good": "#4ADE80",      # Green
-        "Fair": "#FACC15",      # Yellow
-        "Moderate":"#FB923C",   # Orange
-        "Poor": "#F87171",      # Red
-        "Hazardous": "#C084FC"  # Purple
-    }
-    
-    # 4. Layout: Chart on Left, Text on Right
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        fig_pie = px.pie(
-            pie_data, values='Count', names='Category', hole=0.5,
-            color='Category', color_discrete_map=color_map,
-            template="plotly_dark"
-        )
-        
-        # Force text inside slices
-        fig_pie.update_traces(
-            textinfo='percent+label', 
-            textfont_size=14,
-            textposition='inside' 
-        )
-        
-        fig_pie.update_layout(
-            showlegend=False, 
-            margin=dict(t=0, b=0, l=0, r=0), 
-            height=300,
-            paper_bgcolor='rgba(0,0,0,0)'
-        )
-        st.plotly_chart(fig_pie, use_container_width=True)
-        
-    with col2:
-        st.markdown("""
-        ### **Monthly Report:**
-        This chart summarizes the air quality distribution over the last month.
-        """)
 
 
