@@ -237,21 +237,13 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
-# ────────────────────────────────────────────────
-# 6. GRAPHS
-# ────────────────────────────────────────────────
-if not df_recent.empty:
-    df_recent['datetime'] = pd.to_datetime(df_recent['datetime']).dt.tz_localize(None)
-    last_row = df_recent.iloc[-1].copy()
-    
-    # ----------------------------------------------------
-    # GRAPH 1: 72-HOUR FORECAST
+# ----------------------------------------------------
+    # GRAPH 1: 72-HOUR FORECAST & DAILY TABLE
     # ---------------------------------------------------
-
     st.divider()
     st.subheader("🗓️ Next 3 Days Forecast")
     
-    # 1. GENERATE PREDICTIONS (Logic Preserved)
+    # 1. GENERATE PREDICTIONS
     predictions = []
     feature_cols = [
         'pm2_5', 'pm10', 'nitrogen_dioxide', 'ozone', 'sulphor_dioxide',
@@ -275,8 +267,18 @@ if not df_recent.empty:
         
         # Store & Update
         target_time = current_time + timedelta(hours=i)
-        predictions.append({"datetime": target_time, "aqi": final_pred})
         
+        # Save ALL the columns we need for the table later
+        predictions.append({
+            "datetime": target_time,      # We call it 'datetime' here
+            "aqi": final_pred,
+            "pm2_5": last_row['pm2_5'],   # Carrying forward latest value (Simulated)
+            "temp_c": last_row['temp_c'], 
+            "wind_speed_kph": last_row['wind_speed_kph'],
+            "humidity": last_row['humidity']
+        })
+        
+        # Update features for next step (Recursive forecasting)
         last_row["aqi_lag_1"] = final_pred
         last_row["hour"] = target_time.hour
         last_row["day"] = target_time.day
@@ -285,166 +287,71 @@ if not df_recent.empty:
         last_row["year"] = target_time.year
         
     forecast_df = pd.DataFrame(predictions)
+    
+    # ----------------------------------------------------
+    # PART A: THE GRAPH
+    # ----------------------------------------------------
     markers_df = forecast_df[forecast_df['datetime'].dt.hour.isin([0, 12])]
     
-    # 2. PLOT CHART (Compact Style)
     fig = go.Figure()
-    
-    # Layer A: Neon Spline Line
+    # Neon Spline Line
     fig.add_trace(go.Scatter(
         x=forecast_df['datetime'], y=forecast_df['aqi'], mode='lines',
         line=dict(color='#22D3EE', width=3, shape='spline'), hoverinfo='skip'
     ))
-    
-    # Layer B: Checkpoint Markers (Midnight/Noon)
+    # Markers
     fig.add_trace(go.Scatter(
         x=markers_df['datetime'], y=markers_df['aqi'], mode='markers',
         marker=dict(size=10, color='#1E293B', line=dict(width=2, color='#22D3EE')),
         hovertemplate='<b>%{x|%A %H:%M}</b><br>AQI: %{y:.1f}<extra></extra>'
     ))
-    
-    # Styling
     fig.update_layout(
         height=350, margin=dict(l=10, r=10, t=30, b=10), showlegend=False,
         plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
         xaxis=dict(title=dict(text="Date",font=dict(color='#FFFFFF')), showgrid=False, color='#94A3B8', tickformat="%d-%b\n%H:%M", dtick=43200000),
-        yaxis=dict(title=dict(text=" Predicted AQI scale (1-5)",font=dict(color='#FFFFFF')), showgrid=True, gridcolor='#334155', color='#94A3B8', range=[0.5, 5.5],
-                   )
+        yaxis=dict(title=dict(text=" Predicted AQI scale (1-5)",font=dict(color='#FFFFFF')), showgrid=True, gridcolor='#334155', color='#94A3B8', range=[0.5, 5.5])
     )
-    
     st.plotly_chart(fig, use_container_width=True)
-    # ----------------------------------------------------
-    # ----------------------------------------------------
-    # GRAPH 2: POLLUTANTS (Traffic Light Colors)
-    # ----------------------------------------------------
-    st.divider()
-    st.subheader("🧪 Pollutant Breakdown")
-    latest = df_recent.iloc[-1]
-    
-    # 1. Create Dataframe
-    poll_df = pd.DataFrame({
-        "Pollutant": ["PM2.5", "PM10", "NO2", "O3", "SO2", "CO"],
-        "Value": [latest['pm2_5'], latest['pm10'], latest['nitrogen_dioxide'], latest['ozone'], latest['sulphor_dioxide'], latest['carbon_monooxide']]
-    }).sort_values("Value")
-
-    # 2. Define Function to Assign Colors based on Severity
-    def get_color(val):
-        if val < 50: return "#4ADE80"  # Green (Good)
-        elif val < 100: return "#FACC15" # Yellow (Fair)
-        elif val < 200: return "#FB923C" # Orange (Moderate)
-        else: return "#F87171"           # Red (High/Danger)
-
-    # 3. Apply color logic to a new column
-    poll_df["Color"] = poll_df["Value"].apply(get_color)
-
-    # 4. Create Graph
-    fig_bar = px.bar(poll_df, x="Value", y="Pollutant", orientation='h', template="plotly_dark", text="Value") # Show numbers on bars
-    
-    # 5. Force the bars to use our custom colors
-    fig_bar.update_traces(marker_color=poll_df["Color"], texttemplate='%{text:.1f}')
-    
-    fig_bar.update_layout(height=400, plot_bgcolor='rgba(0,0,0,0)',paper_bgcolor='rgba(0,0,0,0)',
-        xaxis=dict(showgrid=True, gridcolor='#334155', title="Concentration (µg/m³)"),
-        yaxis=dict(title=None)
-    )
-    st.plotly_chart(fig_bar, use_container_width=True)
-
-    # ----------------------------------------------------
-    # GRAPH 3: PAST 30 DAYS PIE CHART
-    # ----------------------------------------------------
-    st.divider()
-    st.subheader("📅 Past 30 Days Overview")
-    
-    cutoff_date = datetime.now() - timedelta(days=30)
-    history_df = df_recent[df_recent['datetime'] >= cutoff_date].copy()
-    
-    def get_cat(val):
-        val = round(val)
-        if val <= 1: return "Good"
-        if val <= 2: return "Fair"
-        if val <= 3: return "Moderate"
-        if val <= 4: return "Poor"
-        return "Hazardous"
-    
-    history_df['Category'] = history_df['aqi'].apply(get_cat)
-    pie_data = history_df['Category'].value_counts().reset_index()
-    pie_data.columns = ['Category', 'Count']
-    
-    color_map = {
-        "Good": "#4ADE80",      # Green
-        "Fair": "#FACC15",      # Yellow
-        "Moderate":"#FB923C",   # Orange
-        "Poor": "#F87171",      # Red
-        "Hazardous": "#C084FC"  # Purple
-    }
-    
-    col1, col2 = st.columns([1, 2])
-    
-    with col1:
-        fig_pie = px.pie(pie_data, values='Count', names='Category', hole=0.5,
-                         color='Category', color_discrete_map=color_map,
-                         template="plotly_dark")
-        
-        # FIX: Added textposition='inside' to force labels into the slices
-        fig_pie.update_traces(
-            textinfo='percent+label', 
-            textfont_size=14,
-            textposition='inside'  # 👈 This forces "Fair" to stay inside
-        )
-        
-        fig_pie.update_layout(
-            showlegend=False, 
-            margin=dict(t=0, b=0, l=0, r=0), 
-            height=300,
-            paper_bgcolor='rgba(0,0,0,0)'
-        )
-        st.plotly_chart(fig_pie, use_container_width=True)
-    with col2:
-        st.markdown("""
-        **Overview:**
-        This chart presents the distribution of AQI categories over the past 30 days
-        """)
 
     # ------------------------------------------------------------------
-# DAILY FORECAST SUMMARY (Group by Date)
-# ------------------------------------------------------------------
-st.subheader("📅 3-Day Daily Forecast")
+    # PART B: DAILY FORECAST SUMMARY 
+    # ------------------------------------------------------------------
+    st.subheader("📅 3-Day Daily Forecast")
 
-# 1. Create a 'Date' column to group by (removes the time)
-forecast_df['Date'] = forecast_df['timestamp'].dt.date
+    # 1. Create a 'Date' column (Using 'datetime' because that is what we saved above)
+    forecast_df['Date'] = forecast_df['datetime'].dt.date
 
-# 2. Group the data! 
-# This squeezes all hours of the day into one single row per day.
-daily_df = forecast_df.groupby('Date').agg({
-    'aqi': 'max',             # SHOW WORST AQI of the day (Safer for health)
-    'pm25': 'mean',           # Average pollution
-    'temp_c': 'mean',         # Average temperature
-    'wind_speed_kph': 'max',  # Max wind speed (stormy?)
-    'humidity': 'mean'        # Average humidity
-}).reset_index()
+    # 2. Group the data
+    daily_df = forecast_df.groupby('Date').agg({
+        'aqi': 'max',            # Worst AQI of the day
+        'pm2_5': 'mean',         # Average pollution (Note: uses pm2_5)
+        'temp_c': 'mean',        # Average temp
+        'wind_speed_kph': 'max', # Max wind
+        'humidity': 'mean'       # Avg humidity
+    }).reset_index()
 
-# 3. Clean up the numbers (Round them)
-daily_df['aqi'] = daily_df['aqi'].astype(int)  # Make sure AQI is 1, 2, 3...
-daily_df['pm25'] = daily_df['pm25'].round(1)
-daily_df['temp_c'] = daily_df['temp_c'].round(1)
-daily_df['wind_speed_kph'] = daily_df['wind_speed_kph'].round(1)
-daily_df['humidity'] = daily_df['humidity'].round(0).astype(int)
+    # 3. Clean up the numbers
+    daily_df['aqi'] = daily_df['aqi'].astype(int)
+    daily_df['pm2_5'] = daily_df['pm2_5'].round(1)
+    daily_df['temp_c'] = daily_df['temp_c'].round(1)
+    daily_df['wind_speed_kph'] = daily_df['wind_speed_kph'].round(1)
+    daily_df['humidity'] = daily_df['humidity'].round(0).astype(int)
 
-# 4. Filter for only the NEXT 3 days (exclude today if needed)
-today = datetime.now().date()
-daily_df = daily_df[daily_df['Date'] > today].head(3)
+    # 4. Filter for only the NEXT 3 days
+    today = datetime.now().date()
+    daily_df = daily_df[daily_df['Date'] > today].head(3)
 
-# 5. Display the Clean Table
-st.dataframe(
-    daily_df,
-    column_config={
-        "Date": st.column_config.DateColumn("Date", format="DD MMMM YYYY"),
-        "aqi": st.column_config.NumberColumn("Worst AQI", help="The highest AQI level predicted for this day"),
-        "pm25": st.column_config.NumberColumn("Avg PM2.5", format="%.1f"),
-        "temp_c": st.column_config.NumberColumn("Avg Temp (°C)", format="%.1f"),
-        "wind_speed_kph": st.column_config.NumberColumn("Max Wind (kph)", format="%.1f"),
-        "humidity": st.column_config.ProgressColumn("Avg Humidity", min_value=0, max_value=100, format="%d%%"),
-    },
-    hide_index=True,
-    use_container_width=True
-)
+    # 5. Display the Clean Table
+    st.dataframe(
+        daily_df,
+        column_config={
+            "Date": st.column_config.DateColumn("Date", format="DD MMMM YYYY"),
+            "aqi": st.column_config.NumberColumn("Worst AQI", help="The highest AQI level predicted for this day"),
+            "pm2_5": st.column_config.NumberColumn("Avg PM2.5", format="%.1f"),
+            "temp_c": st.column_config.NumberColumn("Avg Temp (°C)", format="%.1f"),
+            "wind_speed_kph": st.column_config.NumberColumn("Max Wind (kph)", format="%.1f"),
+            "humidity": st.column_config.ProgressColumn("Avg Humidity", min_value=0, max_value=100, format="%d%%"),
+        },
+        hide_index=True,
+        use_container_width=True
+    )
