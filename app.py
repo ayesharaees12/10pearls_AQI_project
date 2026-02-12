@@ -305,10 +305,7 @@ forecast_df['Date'] = forecast_df['datetime'].dt.date
 # 2. Group the data
 daily_df = forecast_df.groupby('Date').agg({
     'aqi': 'max', 
-    'pm25': 'mean',
-    'temp_c': 'mean',
-    
-}).reset_index()
+    }).reset_index()
 
 # 3. Clean up the numbers
 daily_df['aqi'] = daily_df['aqi'].astype(int)
@@ -323,8 +320,7 @@ st.dataframe(
     column_config={
         "Date": st.column_config.DateColumn("Date", format="DD MMMM YYYY"),
         "aqi": st.column_config.NumberColumn("Predicted AQI", help="The highest AQI level predicted for this day"),
-        "pm2_5": st.column_config.NumberColumn("PM2.5", format="%.0f", help="Main pollutant causing smog"),
-        "wind_speed_kph": st.column_config.NumberColumn("Wind (kph)", format="%.1f", help="Higher wind usually clears pollution"),
+        
     },
     hide_index=True,
     use_container_width=True
@@ -441,6 +437,7 @@ with col2:
     ### **Monthly Report:**
     This chart summarizes the air quality distribution over the last month.
     """)
+
 
 
 
