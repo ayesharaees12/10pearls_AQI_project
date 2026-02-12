@@ -321,7 +321,10 @@ forecast_df['Date'] = forecast_df['datetime'].dt.date
 
 # 2. Group the data
 daily_df = forecast_df.groupby('Date').agg({
-    'aqi': 'max',            # Worst AQI of the day
+    'aqi': 'max', 
+    'pm25': 'mean',
+    'temp_c': 'mean',
+    
 }).reset_index()
 
 # 3. Clean up the numbers
@@ -330,7 +333,7 @@ daily_df['aqi'] = daily_df['aqi'].astype(int)
 # 4. Filter for only the NEXT 3 days
 today = datetime.now().date()
 daily_df = daily_df[daily_df['Date'] > today].head(3)
-final_view = daily_df[['Date', 'aqi', 'pm2_5', 'wind_speed_kph']]
+
 # 5. Display the Clean Table
 st.dataframe(
     daily_df,
@@ -455,6 +458,7 @@ with col2:
     ### **Monthly Report:**
     This chart summarizes the air quality distribution over the last month.
     """)
+
 
 
 
