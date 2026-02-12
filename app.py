@@ -242,6 +242,7 @@ st.markdown(f"""
     st.subheader("🗓️ Next 3 Days Forecast")
     
     # 1. GENERATE PREDICTIONS
+    # (This part is crucial! It builds the 'forecast_df' variable)
     predictions = []
     feature_cols = [
         'pm2_5', 'pm10', 'nitrogen_dioxide', 'ozone', 'sulphor_dioxide',
@@ -250,6 +251,7 @@ st.markdown(f"""
         'aqi_lag_1', "aqi_roll_max_24h"
     ]
     
+    # Check if data exists
     if 'df_recent' in locals() and not df_recent.empty:
         last_row = df_recent.iloc[-1].copy() 
     else:
@@ -257,22 +259,22 @@ st.markdown(f"""
     
     current_time = datetime.now()
     
+    # Loop 72 hours into the future
     for i in range(1, 74):
         # Predict
         input_data = last_row[feature_cols].fillna(0).values.reshape(1, -1)
         base_pred = model.predict(scaler.transform(input_data))[0]
         final_pred = max(1, min(5, base_pred * np.random.uniform(0.95, 1.05)))
         
-        # Store
+        # Store prediction
         target_time = current_time + timedelta(hours=i)
         
         predictions.append({
             "datetime": target_time,
             "aqi": final_pred
-            # We don't need to save pollutants/weather here since you removed them from the table
         })
         
-        # Update lag features for next step
+        # Update features for the next hour's prediction
         last_row["aqi_lag_1"] = final_pred
         last_row["hour"] = target_time.hour
         last_row["day"] = target_time.day
@@ -308,14 +310,14 @@ st.markdown(f"""
     st.plotly_chart(fig, use_container_width=True)
 
     # ------------------------------------------------------------------
-    # PART B: DAILY FORECAST SUMMARY TABLE
-   
+    # PART B: DAILY FORECAST SUMMARY TABLE (Simple Version)
+    # ------------------------------------------------------------------
     st.subheader("📅 3-Day Daily Forecast")
 
     # 1. Create a 'Date' column
     forecast_df['Date'] = forecast_df['datetime'].dt.date
 
-    # 2. Group the data (ONLY AQI, as you requested)
+    # 2. Group the data (ONLY AQI)
     daily_df = forecast_df.groupby('Date').agg({
         'aqi': 'max'
     }).reset_index()
@@ -327,7 +329,7 @@ st.markdown(f"""
     today = datetime.now().date()
     daily_df = daily_df[daily_df['Date'] > today].head(3)
 
-    # 5. Display the Clean Table (No 'final_view' needed!)
+    # 5. Display the Clean Table DIRECTLY
     st.dataframe(
         daily_df,
         column_config={
@@ -429,14 +431,3 @@ st.markdown(f"""
         ### **Monthly Report:**
         This chart summarizes the air quality distribution over the last month.
         """)
-
-
-
-
-
-
-
-
-
-
-
