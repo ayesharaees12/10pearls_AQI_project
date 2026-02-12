@@ -236,207 +236,200 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 # ----------------------------------------------------
-    # GRAPH 1: 72-HOUR FORECAST & DAILY TABLE
-    # ---------------------------------------------------
-# ------------------------------------------------------------------
-# DAILY FORECAST SUMMARY (Fixed)
-# ------------------------------------------------------------------
-st.subheader("📅 3-Day Daily Forecast")
+    # GRAPH 1: 72-HOUR FORECAST
+    # ----------------------------------------------------
+    st.divider()
+    st.subheader("🗓️ Next 3 Days Forecast")
+    
+    # 1. GENERATE PREDICTIONS
+    predictions = []
+    feature_cols = [
+        'pm2_5', 'pm10', 'nitrogen_dioxide', 'ozone', 'sulphor_dioxide',
+        'carbon_monooxide', 'temp_c', 'humidity', 'wind_speed_kph', "day_of_week",
+        'precipitation_mm', 'year', 'month', 'day', 'hour','temp_humid_interaction', 'wind_pollution_interaction',
+        'aqi_lag_1', "aqi_roll_max_24h"
+    ]
+    
+    if 'df_recent' in locals() and not df_recent.empty:
+        last_row = df_recent.iloc[-1].copy() 
+    else:
+        st.warning("Waiting for data..."); st.stop()
+    
+    current_time = datetime.now()
+    
+    for i in range(1, 74):
+        # Predict
+        input_data = last_row[feature_cols].fillna(0).values.reshape(1, -1)
+        base_pred = model.predict(scaler.transform(input_data))[0]
+        final_pred = max(1, min(5, base_pred * np.random.uniform(0.95, 1.05)))
+        
+        # Store
+        target_time = current_time + timedelta(hours=i)
+        
+        predictions.append({
+            "datetime": target_time,
+            "aqi": final_pred
+            # We don't need to save pollutants/weather here since you removed them from the table
+        })
+        
+        # Update lag features for next step
+        last_row["aqi_lag_1"] = final_pred
+        last_row["hour"] = target_time.hour
+        last_row["day"] = target_time.day
+        last_row["day_of_week"] = target_time.weekday()
+        last_row["month"] = target_time.month
+        last_row["year"] = target_time.year
+        
+    forecast_df = pd.DataFrame(predictions)
+    
+    # ----------------------------------------------------
+    # PART A: THE LINE GRAPH
+    # ----------------------------------------------------
+    markers_df = forecast_df[forecast_df['datetime'].dt.hour.isin([0, 12])]
+    
+    fig = go.Figure()
+    # Neon Spline Line
+    fig.add_trace(go.Scatter(
+        x=forecast_df['datetime'], y=forecast_df['aqi'], mode='lines',
+        line=dict(color='#22D3EE', width=3, shape='spline'), hoverinfo='skip'
+    ))
+    # Markers
+    fig.add_trace(go.Scatter(
+        x=markers_df['datetime'], y=markers_df['aqi'], mode='markers',
+        marker=dict(size=10, color='#1E293B', line=dict(width=2, color='#22D3EE')),
+        hovertemplate='<b>%{x|%A %H:%M}</b><br>AQI: %{y:.1f}<extra></extra>'
+    ))
+    fig.update_layout(
+        height=350, margin=dict(l=10, r=10, t=30, b=10), showlegend=False,
+        plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+        xaxis=dict(title=dict(text="Date",font=dict(color='#FFFFFF')), showgrid=False, color='#94A3B8', tickformat="%d-%b\n%H:%M", dtick=43200000),
+        yaxis=dict(title=dict(text=" Predicted AQI scale (1-5)",font=dict(color='#FFFFFF')), showgrid=True, gridcolor='#334155', color='#94A3B8', range=[0.5, 5.5])
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-# 1. Create a 'Date' column
-forecast_df['Date'] = forecast_df['datetime'].dt.date
+    # ------------------------------------------------------------------
+    # PART B: DAILY FORECAST SUMMARY TABLE (Simplified)
+    # ------------------------------------------------------------------
+    st.subheader("📅 3-Day Daily Forecast")
 
-# 2. Group the data (FIXED NAMES HERE)
-daily_df = forecast_df.groupby('Date').agg({
-    'aqi': 'max',             # Max AQI
-}).reset_index()
+    # 1. Create a 'Date' column
+    forecast_df['Date'] = forecast_df['datetime'].dt.date
 
-# 3. Clean up the numbers
-daily_df['aqi'] = daily_df['aqi'].astype(int)
-
-# 4. Filter for only the NEXT 3 days
-today = datetime.now().date()
-daily_df = daily_df[daily_df['Date'] > today].head(3)
-
-# 5. Display the Clean Table
-st.dataframe(
-    daily_df,
-    column_config={
-        "Date": st.column_config.DateColumn("Date", format="DD MMM YYYY"),
-        "aqi": st.column_config.NumberColumn("Predicted AQI", help="1=Good, 5=Hazardous"),
-    },
-    hide_index=True,
-    use_container_width=True
-)
-
-# ----------------------------------------------------
-# PART A: THE GRAPH
-# ----------------------------------------------------
-markers_df = forecast_df[forecast_df['datetime'].dt.hour.isin([0, 12])]
-
-fig = go.Figure()
-# Neon Spline Line
-fig.add_trace(go.Scatter(
-    x=forecast_df['datetime'], y=forecast_df['aqi'], mode='lines',
-    line=dict(color='#22D3EE', width=3, shape='spline'), hoverinfo='skip'
-))
-# Markers
-fig.add_trace(go.Scatter(
-    x=markers_df['datetime'], y=markers_df['aqi'], mode='markers',
-    marker=dict(size=10, color='#1E293B', line=dict(width=2, color='#22D3EE')),
-    hovertemplate='<b>%{x|%A %H:%M}</b><br>AQI: %{y:.1f}<extra></extra>'
-))
-fig.update_layout(
-    height=350, margin=dict(l=10, r=10, t=30, b=10), showlegend=False,
-    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-    xaxis=dict(title=dict(text="Date",font=dict(color='#FFFFFF')), showgrid=False, color='#94A3B8', tickformat="%d-%b\n%H:%M", dtick=43200000),
-    yaxis=dict(title=dict(text=" Predicted AQI scale (1-5)",font=dict(color='#FFFFFF')), showgrid=True, gridcolor='#334155', color='#94A3B8', range=[0.5, 5.5])
-)
-st.plotly_chart(fig, use_container_width=True)
-
-# ------------------------------------------------------------------
-# PART B: DAILY FORECAST SUMMARY 
-# ------------------------------------------------------------------
-st.subheader("📅 3-Day Daily Forecast")
-
-# 1. Create a 'Date' column (Using 'datetime' because that is what we saved above)
-forecast_df['Date'] = forecast_df['datetime'].dt.date
-
-# 2. Group the data
-daily_df = forecast_df.groupby('Date').agg({
-    'aqi': 'max', 
+    # 2. Group the data (AQI ONLY)
+    daily_df = forecast_df.groupby('Date').agg({
+        'aqi': 'max'
     }).reset_index()
 
-# 3. Clean up the numbers
-daily_df['aqi'] = daily_df['aqi'].astype(int)
+    # 3. Clean up the numbers
+    daily_df['aqi'] = daily_df['aqi'].astype(int)
 
-# 4. Filter for only the NEXT 3 days
-today = datetime.now().date()
-daily_df = daily_df[daily_df['Date'] > today].head(3)
+    # 4. Filter for only the NEXT 3 days
+    today = datetime.now().date()
+    daily_df = daily_df[daily_df['Date'] > today].head(3)
 
-# 5. Display the Clean Table
-st.dataframe(
-    daily_df,
-    column_config={
-        "Date": st.column_config.DateColumn("Date", format="DD MMMM YYYY"),
-        "aqi": st.column_config.NumberColumn("Predicted AQI", help="The highest AQI level predicted for this day"),
-        
-    },
-    hide_index=True,
-    use_container_width=True
-)
-# ----------------------------------------------------
-    # GRAPH 2: POLLUTANTS BREAKDOWN (Traffic Light Colors)
+    # 5. Display the Simple Table
+    st.dataframe(
+        daily_df,
+        column_config={
+            "Date": st.column_config.DateColumn("Date", format="DD MMM YYYY"),
+            "aqi": st.column_config.NumberColumn("Predicted AQI", help="1=Good, 5=Hazardous"),
+        },
+        hide_index=True,
+        use_container_width=True
+    )
+
     # ----------------------------------------------------
-st.divider()
-st.subheader("🧪 Pollutant Breakdown")
+    # GRAPH 2: POLLUTANTS BREAKDOWN
+    # ----------------------------------------------------
+    st.divider()
+    st.subheader("🧪 Pollutant Breakdown")
+    
+    latest = df_recent.iloc[-1]
+    
+    poll_df = pd.DataFrame({
+        "Pollutant": ["PM2.5", "PM10", "NO2", "O3", "SO2", "CO"],
+        "Value": [
+            latest['pm2_5'], 
+            latest['pm10'], 
+            latest['nitrogen_dioxide'], 
+            latest['ozone'], 
+            latest['sulphor_dioxide'], 
+            latest['carbon_monooxide']
+        ]
+    }).sort_values("Value")
 
-# Get the most recent data row
-latest = df_recent.iloc[-1]
+    def get_color(val):
+        if val < 50: return "#4ADE80"   # Green
+        elif val < 100: return "#FACC15" # Yellow
+        elif val < 200: return "#FB923C" # Orange
+        else: return "#F87171"           # Red
 
-# 1. Create Dataframe for plotting
-poll_df = pd.DataFrame({
-    "Pollutant": ["PM2.5", "PM10", "NO2", "O3", "SO2", "CO"],
-    "Value": [
-        latest['pm2_5'], 
-        latest['pm10'], 
-        latest['nitrogen_dioxide'], 
-        latest['ozone'], 
-        latest['sulphor_dioxide'], 
-        latest['carbon_monooxide']
-    ]
-}).sort_values("Value")
+    poll_df["Color"] = poll_df["Value"].apply(get_color)
 
-# 2. Define Function to Assign Colors based on Severity
-def get_color(val):
-    if val < 50: return "#4ADE80"   # Green (Good)
-    elif val < 100: return "#FACC15" # Yellow (Fair)
-    elif val < 200: return "#FB923C" # Orange (Moderate)
-    else: return "#F87171"           # Red (High/Danger)
-
-# 3. Apply color logic
-poll_df["Color"] = poll_df["Value"].apply(get_color)
-
-# 4. Create Horizontal Bar Chart
-fig_bar = px.bar(
-    poll_df, x="Value", y="Pollutant", orientation='h', 
-    template="plotly_dark", text="Value"
-)
-
-# 5. Style the bars
-fig_bar.update_traces(marker_color=poll_df["Color"], texttemplate='%{text:.1f}')
-fig_bar.update_layout(
-    height=400, 
-    plot_bgcolor='rgba(0,0,0,0)',
-    paper_bgcolor='rgba(0,0,0,0)',
-    xaxis=dict(showgrid=True, gridcolor='#334155', title="Concentration (µg/m³)"),
-    yaxis=dict(title=None)
-)
-st.plotly_chart(fig_bar, use_container_width=True)
-
-# ----------------------------------------------------
-# GRAPH 3: PAST 30 DAYS PIE CHART
-# ----------------------------------------------------
-st.divider()
-st.subheader("📅 Past 30 Days Overview")
-df_recent['datetime'] = pd.to_datetime(df_recent['datetime']).dt.tz_localize(None)
-
-# 1. Filter last 30 days
-cutoff_date = datetime.now() - timedelta(days=30)
-history_df = df_recent[df_recent['datetime'] >= cutoff_date].copy()
-
-# 2. Categorize AQI
-def get_cat(val):
-    val = round(val)
-    if val <= 1: return "Good"
-    if val <= 2: return "Fair"
-    if val <= 3: return "Moderate"
-    if val <= 4: return "Poor"
-    return "Hazardous"
-
-history_df['Category'] = history_df['aqi'].apply(get_cat)
-pie_data = history_df['Category'].value_counts().reset_index()
-pie_data.columns = ['Category', 'Count']
-
-# 3. Define Colors
-color_map = {
-    "Good": "#4ADE80",      # Green
-    "Fair": "#FACC15",      # Yellow
-    "Moderate":"#FB923C",   # Orange
-    "Poor": "#F87171",      # Red
-    "Hazardous": "#C084FC"  # Purple
-}
-
-# 4. Layout: Chart on Left, Text on Right
-col1, col2 = st.columns([1, 1])
-
-with col1:
-    fig_pie = px.pie(
-        pie_data, values='Count', names='Category', hole=0.5,
-        color='Category', color_discrete_map=color_map,
-        template="plotly_dark"
+    fig_bar = px.bar(
+        poll_df, x="Value", y="Pollutant", orientation='h', 
+        template="plotly_dark", text="Value"
     )
     
-    # Force text inside slices
-    fig_pie.update_traces(
-        textinfo='percent+label', 
-        textfont_size=14,
-        textposition='inside' 
+    fig_bar.update_traces(marker_color=poll_df["Color"], texttemplate='%{text:.1f}')
+    fig_bar.update_layout(
+        height=400, 
+        plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+        xaxis=dict(showgrid=True, gridcolor='#334155', title="Concentration (µg/m³)"),
+        yaxis=dict(title=None)
     )
+    st.plotly_chart(fig_bar, use_container_width=True)
+
+    # ----------------------------------------------------
+    # GRAPH 3: PAST 30 DAYS PIE CHART
+    # ----------------------------------------------------
+    st.divider()
+    st.subheader("📅 Past 30 Days Overview")
     
-    fig_pie.update_layout(
-        showlegend=False, 
-        margin=dict(t=0, b=0, l=0, r=0), 
-        height=300,
-        paper_bgcolor='rgba(0,0,0,0)'
-    )
-    st.plotly_chart(fig_pie, use_container_width=True)
+    # Fix Timezone Issue
+    df_recent['datetime'] = pd.to_datetime(df_recent['datetime']).dt.tz_localize(None)
     
-with col2:
-    st.markdown("""
-    ### **Monthly Report:**
-    This chart summarizes the air quality distribution over the last month.
-    """)
+    cutoff_date = datetime.now() - timedelta(days=30)
+    history_df = df_recent[df_recent['datetime'] >= cutoff_date].copy()
+    
+    def get_cat(val):
+        val = round(val)
+        if val <= 1: return "Good"
+        if val <= 2: return "Fair"
+        if val <= 3: return "Moderate"
+        if val <= 4: return "Poor"
+        return "Hazardous"
+    
+    history_df['Category'] = history_df['aqi'].apply(get_cat)
+    pie_data = history_df['Category'].value_counts().reset_index()
+    pie_data.columns = ['Category', 'Count']
+    
+    color_map = {
+        "Good": "#4ADE80", "Fair": "#FACC15", 
+        "Moderate":"#FB923C", "Poor": "#F87171", "Hazardous": "#C084FC"
+    }
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        fig_pie = px.pie(
+            pie_data, values='Count', names='Category', hole=0.5,
+            color='Category', color_discrete_map=color_map,
+            template="plotly_dark"
+        )
+        fig_pie.update_traces(textinfo='percent+label', textfont_size=14, textposition='inside')
+        fig_pie.update_layout(
+            showlegend=False, margin=dict(t=0, b=0, l=0, r=0), 
+            height=300, paper_bgcolor='rgba(0,0,0,0)'
+        )
+        st.plotly_chart(fig_pie, use_container_width=True)
+        
+    with col2:
+        st.markdown("""
+        ### **Monthly Report:**
+        This chart summarizes the air quality distribution over the last month.
+        """)
+
 
 
 
