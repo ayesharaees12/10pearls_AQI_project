@@ -405,74 +405,46 @@ if not df_recent.empty:
         This chart presents the distribution of AQI categories over the past 30 days
         """)
 
-    # ─────────────────────────────────────────────────────────────
-    # 3-DAY SUMMARY TABLE 
-    # ─────────────────────────────────────────────────────────────
-    st.divider(); st.subheader("📊 3-Day Forecast Summary")
+    # ------------------------------------------------------------------
+# DAILY FORECAST SUMMARY (Group by Date)
+# ------------------------------------------------------------------
+st.subheader("📅 3-Day Daily Forecast")
 
-    if 'predictions' in locals() and predictions:
-        
-        # 1. Define 'Today' (Karachi Time: UTC+5)
-        today = (datetime.now() + timedelta(hours=5)).date()
+# 1. Create a 'Date' column to group by (removes the time)
+forecast_df['Date'] = forecast_df['timestamp'].dt.date
 
-        # 2. Process Data
-        daily_summary = pd.DataFrame(predictions)
-        daily_summary["datetime"]=daily_summary["datetime"] + timedelta(hours=5)
-        daily_summary['Date'] = pd.to_datetime(daily_summary['datetime']).dt.date
-        
-        # Filter: strictly greater than today
-        daily_summary = daily_summary[daily_summary['Date'] > today]
-        
-        # Group & Rename"
-        daily_summary = daily_summary.groupby('Date')['aqi'].mean().reset_index()
-        daily_summary.columns = ['Forecast Date', 'AQI Level']
+# 2. Group the data! 
+# This squeezes all hours of the day into one single row per day.
+daily_df = forecast_df.groupby('Date').agg({
+    'aqi': 'max',             # SHOW WORST AQI of the day (Safer for health)
+    'pm25': 'mean',           # Average pollution
+    'temp_c': 'mean',         # Average temperature
+    'wind_speed_kph': 'max',  # Max wind speed (stormy?)
+    'humidity': 'mean'        # Average humidity
+}).reset_index()
 
-        # 3. Apply Styling (Dark Background, No Gradient)
-        styled_df = daily_summary.style.set_properties(**{
-            'background-color': '#1E293B',  # 👈 Sets entire table to Dark Blue
-            'color': '#E2E8F0',             # Light Text
-            'border-color': '#475569',      # Subtle Grey Border
-            'text-align': 'center'          # Center alignment looks better
-        }) 
-        # Note: I removed .background_gradient() so colors won't change!
+# 3. Clean up the numbers (Round them)
+daily_df['aqi'] = daily_df['aqi'].astype(int)  # Make sure AQI is 1, 2, 3...
+daily_df['pm25'] = daily_df['pm25'].round(1)
+daily_df['temp_c'] = daily_df['temp_c'].round(1)
+daily_df['wind_speed_kph'] = daily_df['wind_speed_kph'].round(1)
+daily_df['humidity'] = daily_df['humidity'].round(0).astype(int)
 
-        # 4. Display
-        st.dataframe(
-            styled_df,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Forecast Date": st.column_config.DateColumn("📅 Date", format="DD-MMM-YYYY"),
-                "AQI Level": st.column_config.NumberColumn("💨 Avg AQI", format="%.2f")
-            }
-        )
+# 4. Filter for only the NEXT 3 days (exclude today if needed)
+today = datetime.now().date()
+daily_df = daily_df[daily_df['Date'] > today].head(3)
 
-    else:
-        st.warning("⚠️ No data available to generate predictions.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# 5. Display the Clean Table
+st.dataframe(
+    daily_df,
+    column_config={
+        "Date": st.column_config.DateColumn("Date", format="DD MMMM YYYY"),
+        "aqi": st.column_config.NumberColumn("Worst AQI", help="The highest AQI level predicted for this day"),
+        "pm25": st.column_config.NumberColumn("Avg PM2.5", format="%.1f"),
+        "temp_c": st.column_config.NumberColumn("Avg Temp (°C)", format="%.1f"),
+        "wind_speed_kph": st.column_config.NumberColumn("Max Wind (kph)", format="%.1f"),
+        "humidity": st.column_config.ProgressColumn("Avg Humidity", min_value=0, max_value=100, format="%d%%"),
+    },
+    hide_index=True,
+    use_container_width=True
+)
