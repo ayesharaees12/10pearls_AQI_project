@@ -238,53 +238,42 @@ st.markdown(f"""
 # ----------------------------------------------------
     # GRAPH 1: 72-HOUR FORECAST & DAILY TABLE
     # ---------------------------------------------------
-st.divider()
-st.subheader("🗓️ Next 3 Days Forecast")
+# ------------------------------------------------------------------
+# DAILY FORECAST SUMMARY (Fixed)
+# ------------------------------------------------------------------
+st.subheader("📅 3-Day Daily Forecast")
 
-# 1. GENERATE PREDICTIONS
-predictions = []
-feature_cols = [
-    'pm2_5', 'pm10', 'nitrogen_dioxide', 'ozone', 'sulphor_dioxide',
-    'carbon_monooxide', 'temp_c', 'humidity', 'wind_speed_kph', "day_of_week",
-    'precipitation_mm', 'year', 'month', 'day', 'hour','temp_humid_interaction', 'wind_pollution_interaction',
-    'aqi_lag_1', "aqi_roll_max_24h"
-]
+# 1. Create a 'Date' column
+forecast_df['Date'] = forecast_df['datetime'].dt.date
 
-if 'df_recent' in locals() and not df_recent.empty:
-    last_row = df_recent.iloc[-1].copy() 
-else:
-    st.warning("Waiting for data..."); st.stop()
+# 2. Group the data (FIXED NAMES HERE)
+daily_df = forecast_df.groupby('Date').agg({
+    'aqi': 'max',             # Max AQI
+    'pm2_5': 'mean',          # 
+    'wind_speed_kph': 'max'   # 
+}).reset_index()
 
-current_time = datetime.now()
+# 3. Clean up the numbers
+daily_df['aqi'] = daily_df['aqi'].astype(int)
+daily_df['pm2_5'] = daily_df['pm2_5'].round(0)      # Round PM2.5 to whole number
+daily_df['wind_speed_kph'] = daily_df['wind_speed_kph'].round(1)
 
-for i in range(1, 74):
-    # Predict
-    input_data = last_row[feature_cols].fillna(0).values.reshape(1, -1)
-    base_pred = model.predict(scaler.transform(input_data))[0]
-    final_pred = max(1, min(5, base_pred * np.random.uniform(0.95, 1.05)))
-    
-    # Store & Update
-    target_time = current_time + timedelta(hours=i)
-    
-    # Save ALL the columns we need for the table later
-    predictions.append({
-        "datetime": target_time,      # We call it 'datetime' here
-        "aqi": final_pred,
-        "pm2_5": last_row['pm2_5'],   # Carrying forward latest value (Simulated)
-        "temp_c": last_row['temp_c'], 
-        "wind_speed_kph": last_row['wind_speed_kph'],
-        "humidity": last_row['humidity']
-    })
-    
-    # Update features for next step (Recursive forecasting)
-    last_row["aqi_lag_1"] = final_pred
-    last_row["hour"] = target_time.hour
-    last_row["day"] = target_time.day
-    last_row["day_of_week"] = target_time.weekday()
-    last_row["month"] = target_time.month
-    last_row["year"] = target_time.year
-    
-forecast_df = pd.DataFrame(predictions)
+# 4. Filter for only the NEXT 3 days
+today = datetime.now().date()
+daily_df = daily_df[daily_df['Date'] > today].head(3)
+
+# 5. Display the Clean Table
+st.dataframe(
+    daily_df,
+    column_config={
+        "Date": st.column_config.DateColumn("Date", format="DD MMM YYYY"),
+        "aqi": st.column_config.NumberColumn("Predicted AQI", help="1=Good, 5=Hazardous"),
+        "pm2_5": st.column_config.NumberColumn("PM2.5", format="%.0f", help="Main pollutant causing smog"),
+        "wind_speed_kph": st.column_config.NumberColumn("Wind (kph)", format="%.1f", help="Higher wind usually clears pollution"),
+    },
+    hide_index=True,
+    use_container_width=True
+)
 
 # ----------------------------------------------------
 # PART A: THE GRAPH
@@ -458,6 +447,7 @@ with col2:
     ### **Monthly Report:**
     This chart summarizes the air quality distribution over the last month.
     """)
+
 
 
 
