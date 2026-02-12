@@ -308,14 +308,14 @@ st.markdown(f"""
     st.plotly_chart(fig, use_container_width=True)
 
     # ------------------------------------------------------------------
-    # PART B: DAILY FORECAST SUMMARY TABLE (Simplified)
-    # ------------------------------------------------------------------
+    # PART B: DAILY FORECAST SUMMARY TABLE
+   
     st.subheader("📅 3-Day Daily Forecast")
 
     # 1. Create a 'Date' column
     forecast_df['Date'] = forecast_df['datetime'].dt.date
 
-    # 2. Group the data (AQI ONLY)
+    # 2. Group the data (ONLY AQI, as you requested)
     daily_df = forecast_df.groupby('Date').agg({
         'aqi': 'max'
     }).reset_index()
@@ -327,7 +327,7 @@ st.markdown(f"""
     today = datetime.now().date()
     daily_df = daily_df[daily_df['Date'] > today].head(3)
 
-    # 5. Display the Simple Table
+    # 5. Display the Clean Table (No 'final_view' needed!)
     st.dataframe(
         daily_df,
         column_config={
@@ -429,6 +429,7 @@ st.markdown(f"""
         ### **Monthly Report:**
         This chart summarizes the air quality distribution over the last month.
         """)
+
 
 
 
