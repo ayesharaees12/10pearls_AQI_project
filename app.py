@@ -249,14 +249,10 @@ forecast_df['Date'] = forecast_df['datetime'].dt.date
 # 2. Group the data (FIXED NAMES HERE)
 daily_df = forecast_df.groupby('Date').agg({
     'aqi': 'max',             # Max AQI
-    'pm2_5': 'mean',          # 
-    'wind_speed_kph': 'max'   # 
 }).reset_index()
 
 # 3. Clean up the numbers
 daily_df['aqi'] = daily_df['aqi'].astype(int)
-daily_df['pm2_5'] = daily_df['pm2_5'].round(0)      # Round PM2.5 to whole number
-daily_df['wind_speed_kph'] = daily_df['wind_speed_kph'].round(1)
 
 # 4. Filter for only the NEXT 3 days
 today = datetime.now().date()
@@ -268,8 +264,6 @@ st.dataframe(
     column_config={
         "Date": st.column_config.DateColumn("Date", format="DD MMM YYYY"),
         "aqi": st.column_config.NumberColumn("Predicted AQI", help="1=Good, 5=Hazardous"),
-        "pm2_5": st.column_config.NumberColumn("PM2.5", format="%.0f", help="Main pollutant causing smog"),
-        "wind_speed_kph": st.column_config.NumberColumn("Wind (kph)", format="%.1f", help="Higher wind usually clears pollution"),
     },
     hide_index=True,
     use_container_width=True
@@ -447,6 +441,7 @@ with col2:
     ### **Monthly Report:**
     This chart summarizes the air quality distribution over the last month.
     """)
+
 
 
 
