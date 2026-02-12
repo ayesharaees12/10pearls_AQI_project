@@ -45,7 +45,7 @@ def train_model():
 
     df = df.drop_duplicates().reset_index(drop=True)
     
-    cols_to_drop = ["aqi_change", "aqi_pct_change", "target_aqi_24h", "datetime"]
+    cols_to_drop = ["aqi_change", "aqi_pct_change", "target_aqi_24h", "datetime","aqi_lag_1","aqi_roll_max_24h"]
     df_clean = df.drop(columns=[c for c in cols_to_drop if c in df.columns], errors='ignore')
     df_clean = df_clean.fillna(0)
 
