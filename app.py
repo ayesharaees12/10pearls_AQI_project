@@ -15,9 +15,8 @@ from pathlib import Path
 import math
 import plotly.graph_objects as go 
 
-# ────────────────────────────────────────────────
 # 1. CONFIGURATION
-# ────────────────────────────────────────────────
+
 PROJECT_NAME = "aqi_quality_fs"
 MODEL_NAME = "karachi_aqi_best_model" 
 FG_NAME = "karachi_aqi_features"
@@ -35,9 +34,8 @@ st.set_page_config(
     page_icon="🌬️"
 )
 
-# ────────────────────────────────────────────────
 # 2. CUSTOM CSS (Professional Dark Blue/Slate Theme)
-# ────────────────────────────────────────────────
+
 st.markdown("""
     <style>
     /* 1. Remove white header bar */
@@ -74,9 +72,9 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
-# ────────────────────────────────────────────────
+
 # 3. SIDEBAR
-# ────────────────────────────────────────────────
+
 with st.sidebar:
     st.markdown("### ⚙️ Model Metrics")
     m_name = st.empty() 
@@ -84,96 +82,88 @@ with st.sidebar:
     m_r2 = st.empty()
     m_mae = st.empty()
     
-    # st.info("System Last Updated: " + datetime.now().strftime("%d-%b %H:%M"))
-
-# ────────────────────────────────────────────────
 # 4. SYSTEM LOGIC
-# ────────────────────────────────────────────────
+
 st.title("🏙️ Karachi AQI forecasting Dashboard")
 st.markdown("Real-time monitoring and 72-hour AQI forecasting for Karachi")
+
+# 1. LOAD LATEST MODEL DYNAMICALLY
+# ----------------------------------------------------
 try:
-    
-    # STEP 1: CONNECT TO HOPSWORKS
-    project = hopsworks.login(api_key_value=HOPSWORKS_API_KEY, project=PROJECT_NAME)
+    project = hopsworks.login()
     mr = project.get_model_registry()
-    st.success("✅ Connected to Hopsworks! Fetching latest data...") 
-
- # STEP 2: FIND & DOWNLOAD BEST MODEL
+    
+    # Get ALL versions of your model
     models = mr.get_models("karachi_aqi_best_model")
-    if not models:
-        models = mr.get_models(MODEL_NAME) # Fallback
-    
-    if not models:
-        st.error("⚠️ No models found in Registry.")
-        st.stop()
 
-    best_model = models[-1] # Take the latest one
-    print(f"🏆 Loading Version {best_model.version}")
+    #  Sort by version and pick the highest one
+    # This ensures that if GitHub creates V36 tomorrow, the app picks V36.
+    best_model_metadata = max(models, key=lambda m: m.version)
     
-    # EXTRACT REAL NAME (Clean up the description to find 'RandomForest' etc.)
-    desc = best_model.description if best_model.description else "Unknown"
-    if "|" in desc:
-        # Format: "Run Date: ... | algo: RandomForest"
-        algo_name = desc.split("|")[-1].strip()
-    elif ":" in desc:
-        # Format: "Best Model: RandomForest (History...)"
-        raw_name = desc.split(":")[-1].strip()
-        algo_name = raw_name.split("(")[0].strip()
-    else:
-        algo_name = f"Version {best_model.version}"
+    print(f"✅ Loading Latest Model: Version {best_model_metadata.version}")
 
-    # Update Sidebar Metrics
-    metrics = best_model.training_metrics or {}
+    # Download the files
+    model_dir = best_model_metadata.download()
     
-    # CHANGE 2: Show Real Name in Sidebar
-    m_name.success(f"🤖 **Model:** {algo_name}") 
-    m_rmse.info(f"📉 RMSE: **{metrics.get('RMSE', 0):.4f}**")
-    m_r2.info(f"📈 R2: **{metrics.get('R2', 0):.4f}**")
-    m_mae.info(f"📏 MAE: **{metrics.get('MAE', 0):.4f}**")
-
-    # CHANGE 3: Success message for Model Download
-    st.success(f"✅ Best Trained Model Downloaded: {algo_name}")
-
-    download_path = best_model.download()
-    model_dir = Path(download_path)
-    
+    # Locate the files (Robust search)
     try:
-        scaler_path = next(model_dir.rglob("scaler.pkl"))
+        # Find scaler.pkl anywhere in the folder
+        scaler_path = next(Path(model_dir).rglob("scaler.pkl"))
         scaler = joblib.load(scaler_path)
     except StopIteration:
-        st.error(f"❌ CRITICAL: 'scaler.pkl' not found in Version {best_model.version}!")
+        st.error(f"❌ CRITICAL: 'scaler.pkl' not found in Version {best_model_metadata.version}!")
         st.stop()
 
     try:
-        model_path = next(f for f in model_dir.rglob("*.pkl") if "scaler" not in f.name)
+        # Find the model file (exclude scaler)
+        model_path = next(f for f in Path(model_dir).rglob("*.pkl") if "scaler" not in f.name)
         model = joblib.load(model_path)
     except StopIteration:
-        st.error(f"❌ CRITICAL: Model .pkl file not found in Version {best_model.version}!")
+        st.error(f"❌ CRITICAL: Model .pkl file not found in Version {best_model_metadata.version}!")
         st.stop()
 
-    # ─────────────────────────────────────────────────────────────
-    # STEP 4: FETCH FEATURE DATA
-    # ─────────────────────────────────────────────────────────────
-    
-    print("⏳ Fetching recent data from Feature Store...")
-    fs = project.get_feature_store()
-    fg = fs.get_feature_group(name=FG_NAME, version=FG_VERSION)
-    
-    try:
-        df_recent = fg.read(read_options={"use_arrow_flight": False}).tail(1000)
-        print("✅ Data Fetched Successfully")
-    except Exception as e:
-        print(f"⚠️ Feature Store Read Failed: {e}")
-        st.warning("⚠️ Could not load history data. Charts might be empty.")
-        df_recent = pd.DataFrame()
+    # ✅ GET METRICS FOR SIDEBAR
+    metrics = best_model_metadata.training_metrics
+    model_rmse = metrics.get("RMSE", 0.0)
+    model_r2 = metrics.get("R2", 0.0)
+    model_mae = metrics.get("MAE", 0.0)
+    model_algo = "RandomForest" 
 
 except Exception as e:
-    st.error(f"❌ Unexpected Error: {e}")
-    # print(traceback.format_exc()) # distinct logging if needed
+    st.error(f"⚠ Could not load model from Hopsworks: {e}")
     st.stop()
 
-# ─────────────────────────────────────────────────────────────
-# 5. SIDEBAR: STATIC SAFETY GUIDE (Blue Box Style)
+# 2. SIDEBAR METRICS
+# ----------------------------------------------------
+st.sidebar.header("⚙️ Model Metrics")
+st.sidebar.success(f"🤖 **Best Model:** {model_algo}")
+st.sidebar.info(f"📉 **RMSE:** {model_rmse:.4f}")
+st.sidebar.info(f"📊 **R² Score:** {model_r2:.4f}")
+st.sidebar.info(f"📉 **MAE:** {model_mae:.4f}")
+
+# 3. FETCH RECENT DATA
+# ----------------------------------------------------
+st.write("⏳ Fetching recent data from Feature Store...")
+
+try:
+    fs = project.get_feature_store()
+    # Make sure these names match your Hopsworks setup exactly
+    fg = fs.get_feature_group(name="karachi_aqi_features", version=7) 
+    
+    # Fetch last 1000 rows
+    df_recent = fg.read(read_options={"use_arrow_flight": False}).tail(1000)
+    
+    if "datetime" in df_recent.columns:
+        df_recent = df_recent.sort_values("datetime")
+        
+    st.success("✅ Data Fetched Successfully")
+
+except Exception as e:
+    st.warning(f"⚠️ Feature Store Read Failed: {e}")
+    st.warning("⚠️ Could not load history data. Charts might be empty.")
+    df_recent = pd.DataFrame()
+
+# 4. SIDEBAR: STATIC SAFETY GUIDE (Blue Box Style)
 # ─────────────────────────────────────────────────────────────
 with st.sidebar:
     st.divider()
@@ -198,7 +188,7 @@ with st.sidebar:
     
     # System Update Time
     st.info("System Last Updated: " + datetime.now().strftime("%d-%b %H:%M"))
-# ────────────────────────────────────────────────
+
 # 5. LIVE AQI HEADER
 # ────────────────────────────────────────────────
 def get_live_aqi():
@@ -235,22 +225,26 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
+
+# GRAPH 1: 72-HOUR FORECAST (No Lag Features)
 # ----------------------------------------------------
-# ----------------------------------------------------
-    # GRAPH 1: 72-HOUR FORECAST
-    # ----------------------------------------------------
 st.divider()
 st.subheader("🗓️ Next 3 Days Forecast")
 
-# 1. GENERATE PREDICTIONS
-predictions = []
-# Note: We need these features for the MODEL to work, even if we don't show them in the table
+# Removed 'aqi_lag_1' and 'aqi_roll_max_24h' as requested.
 feature_cols = [
     'pm2_5', 'pm10', 'nitrogen_dioxide', 'ozone', 'sulphor_dioxide',
     'carbon_monooxide', 'temp_c', 'humidity', 'wind_speed_kph', "day_of_week",
-    'precipitation_mm', 'year', 'month', 'day', 'hour','temp_humid_interaction', 'wind_pollution_interaction',
-    'aqi_lag_1', "aqi_roll_max_24h"
+    'precipitation_mm', 'year', 'month', 'day', 'hour','temp_humid_interaction', 'wind_pollution_interaction'
 ]
+
+# Features to randomly vary (to simulate weather changes)
+vary_cols = [
+    'pm2_5', 'pm10', 'nitrogen_dioxide', 'ozone', 'sulphor_dioxide',
+    'carbon_monooxide', 'temp_c', 'humidity', 'wind_speed_kph'
+]
+
+predictions = []
 
 if 'df_recent' in locals() and not df_recent.empty:
     last_row = df_recent.iloc[-1].copy() 
@@ -258,31 +252,41 @@ else:
     st.warning("Waiting for data..."); st.stop()
 
 current_time = datetime.now()
+current_vals = last_row.copy()
 
+# 2. GENERATE FORECAST LOOP
 for i in range(1, 74):
-    # Predict
-    input_data = last_row[feature_cols].fillna(0).values.reshape(1, -1)
-    base_pred = model.predict(scaler.transform(input_data))[0]
-    final_pred = max(1, min(5, base_pred * np.random.uniform(0.95, 1.05)))
-    
-    # Store prediction
     target_time = current_time + timedelta(hours=i)
+    
+    # A. RANDOMIZE WEATHER
+    # We add +/- 5% noise to weather features so the line moves up and down
+    for col in vary_cols:
+        noise = np.random.normal(0, 0.05) 
+        current_vals[col] = current_vals[col] * (1 + noise)
+
+    #  B. UPDATE TIME
+    current_vals["hour"] = target_time.hour
+    current_vals["day"] = target_time.day
+    current_vals["day_of_week"] = target_time.weekday()
+    current_vals["month"] = target_time.month
+    current_vals["year"] = target_time.year
+
+    #  C. PREDICT
+    # We only use the columns defined in 'feature_cols' (No Lags!)
+    input_data = current_vals[feature_cols].fillna(0).values.reshape(1, -1)
+    base_pred = model.predict(scaler.transform(input_data))[0]
+    
+    # Clip result to 1-5 range
+    final_pred = max(1, min(5, base_pred))
+    
     predictions.append({
         "datetime": target_time,
         "aqi": final_pred
     })
-    
-    # Update lag features
-    last_row["aqi_lag_1"] = final_pred
-    last_row["hour"] = target_time.hour
-    last_row["day"] = target_time.day
-    last_row["day_of_week"] = target_time.weekday()
-    last_row["month"] = target_time.month
-    last_row["year"] = target_time.year
-    
+
 forecast_df = pd.DataFrame(predictions)
 
-# ----------------------------------------------------
+
 # PART A: THE LINE GRAPH
 # ----------------------------------------------------
 markers_df = forecast_df[forecast_df['datetime'].dt.hour.isin([0, 12])]
@@ -295,31 +299,30 @@ fig.add_trace(go.Scatter(
 fig.add_trace(go.Scatter(
     x=markers_df['datetime'], y=markers_df['aqi'], mode='markers',
     marker=dict(size=10, color='#1E293B', line=dict(width=2, color='#22D3EE')),
-    hovertemplate='<b>%{x|%A %H:%M}</b><br>AQI: %{y:.1f}<extra></extra>'
+    hovertemplate='<b>%{x|%A %H:%M}</b><br>AQI: %{y:.2f}<extra></extra>'
 ))
 fig.update_layout(
     height=350, margin=dict(l=10, r=10, t=30, b=10), showlegend=False,
-    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+    plot_bgcolor='#1E293B', paper_bgcolor='#1E293B', # Dark background to match app
     xaxis=dict(title=dict(text="Date",font=dict(color='#FFFFFF')), showgrid=False, color='#94A3B8', tickformat="%d-%b\n%H:%M", dtick=43200000),
     yaxis=dict(title=dict(text=" Predicted AQI scale (1-5)",font=dict(color='#FFFFFF')), showgrid=True, gridcolor='#334155', color='#94A3B8', range=[0.5, 5.5])
 )
 st.plotly_chart(fig, use_container_width=True)
 
-# ------------------------------------------------------------------
-# PART B: DAILY FORECAST SUMMARY (Clean Version)
+# PART B: DAILY FORECAST SUMMARY
 # ------------------------------------------------------------------
 st.subheader("📅 3-Day Daily Forecast")
-
 forecast_df['Date'] = forecast_df['datetime'].dt.date
 
-# ONLY Calculate AQI Max (Ignore other columns to avoid errors)
+# Calculate Max AQI for each day
 daily_df = forecast_df.groupby('Date').agg({'aqi': 'max'}).reset_index()
+daily_df['aqi'] = daily_df['aqi'].round().astype(int)
 
-daily_df['aqi'] = daily_df['aqi'].astype(int)
-
+# Filter for next 3 days
 today = datetime.now().date()
 daily_df = daily_df[daily_df['Date'] > today].head(3)
 
+# Display Table 
 st.dataframe(
     daily_df,
     column_config={
@@ -330,7 +333,6 @@ st.dataframe(
     use_container_width=True
 )
 
-# ----------------------------------------------------
 # GRAPH 2: POLLUTANTS BREAKDOWN
 # ----------------------------------------------------
 st.divider()
@@ -363,7 +365,6 @@ fig_bar.update_layout(
 )
 st.plotly_chart(fig_bar, use_container_width=True)
 
-# ----------------------------------------------------
 # GRAPH 3: PAST 30 DAYS PIE CHART
 # ----------------------------------------------------
 st.divider()
@@ -397,4 +398,3 @@ with col1:
     st.plotly_chart(fig_pie, use_container_width=True)
 with col2:
     st.markdown("### **Monthly Report:**\nThis chart summarizes the air quality distribution over the last month.")
-
