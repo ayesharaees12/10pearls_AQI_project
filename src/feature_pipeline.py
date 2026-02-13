@@ -1,182 +1,93 @@
-import time
-import os
-import requests
+import os, time, requests, hopsworks
 import pandas as pd
-import numpy as np
-import hopsworks
 from datetime import datetime
 import pytz
 
-# ---------------------------------------------------------
-#RETRY DECORATOR (The "Try Again" Logic)
-# ---------------------------------------------------------
-def retry_operation(func, max_retries=3, delay=10, operation_name="Operation"):
-    for attempt in range(1, max_retries + 1):
-        try:
-            return func()
+# --- CONFIG ---
+HW_API_KEY = os.getenv("HOPSWORKS_API_KEY")
+AQI_API_KEY = os.getenv("AQI_API_KEY")
+LAT, LON = 24.8607, 67.0011
+
+# --- HELPER: RETRY LOGIC ---
+def retry(func, retries=3, delay=10):
+    for i in range(retries):
+        try: return func()
         except Exception as e:
-            print(f"⚠️ {operation_name} failed (Attempt {attempt}/{max_retries}): {e}")
-            if attempt < max_retries:
-                print(f"⏳ Waiting {delay}s before retrying...")
-                time.sleep(delay)
-            else:
-                print(f"❌ {operation_name} failed after {max_retries} attempts.")
-                raise e
+            print(f"⚠️ Attempt {i+1} failed: {e}")
+            time.sleep(delay)
+    raise Exception(f"❌ Failed after {retries} retries")
 
-# ---------------------------------------------------------
-# 1. CONNECT TO HOPSWORKS
-# ---------------------------------------------------------
-def connect_to_hopsworks():
-    hw_api_key = os.getenv("HOPSWORKS_API_KEY")
-    if not hw_api_key:
-        raise ValueError("HOPSWORKS_API_KEY is missing")
+# --- 1. GET DATA ---
+def get_data():
+    if not AQI_API_KEY: raise ValueError("Missing AQI_API_KEY")
     
-    project = hopsworks.login(api_key_value=hw_api_key, project="aqi_quality_fs")
-    fs = project.get_feature_store()
-    fg = fs.get_feature_group(name="karachi_aqi_features", version=7)
-    return fg
+    # Fetch Data
+    p = requests.get(f"http://api.openweathermap.org/data/2.5/air_pollution?lat={LAT}&lon={LON}&appid={AQI_API_KEY}", timeout=10).json()['list'][0]
+    w = requests.get(f"https://api.openweathermap.org/data/2.5/weather?lat={LAT}&lon={LON}&units=metric&appid={AQI_API_KEY}", timeout=10).json()
+    
+    # Timezone & Parse
+    dt = datetime.now(pytz.timezone('Asia/Karachi')).replace(tzinfo=None)
+    
+    return pd.DataFrame([{
+        'datetime': dt,
+        'aqi': int(p['main']['aqi']),
+        'humidity': int(w['main']['humidity']),
+        'pm2_5': float(p['components']['pm2_5']),
+        'pm10': float(p['components']['pm10']),
+        'nitrogen_dioxide': float(p['components']['no2']),
+        'ozone': float(p['components']['o3']),
+        'sulphor_dioxide': float(p['components']['so2']),
+        'carbon_monooxide': float(p['components']['co']),
+        'temp_c': float(w['main']['temp']),
+        'wind_speed_kph': float(w['wind']['speed'] * 3.6),
+        'precipitation_mm': float(w.get('rain', {}).get('1h', 0.0)),
+        'year': dt.year, 'month': dt.month, 'day': dt.day, 'hour': dt.hour,
+        'day_of_week': int(dt.weekday()), # Forced Int
+        'temp_humid_interaction': float(w['main']['temp'] * w['main']['humidity']),
+        'wind_pollution_interaction': float(w['wind']['speed'] * 3.6 * p['components']['pm2_5'])
+    }])
 
-# ─────────────────────────────────────────────────────────────
-# 2. DATA FETCHER (OPENWEATHERMAP ONLY)
-# ─────────────────────────────────────────────────────────────
-# ---------------------------------------------------------
-# 2. DATA FETCHER (OPENWEATHERMAP ONLY)
-# ---------------------------------------------------------
-def get_live_weather_data():
-    lat, lon = 24.8607, 67.0011
-    aqi_key = os.getenv('AQI_API_KEY')
+# --- 2. PROCESS & UPLOAD ---
+def run_pipeline():
+    print("🚀 Pipeline Started...")
     
-    if not aqi_key:
-        raise ValueError("AQI_API_KEY is missing")
-            
-    # A. Fetch Pollution (Set timeout to prevent hanging)
-    p_res = requests.get(f"http://api.openweathermap.org/data/2.5/air_pollution?lat={lat}&lon={lon}&appid={aqi_key}", timeout=10)
+    # Login
+    project = hopsworks.login(api_key_value=HW_API_KEY, project="aqi_quality_fs")
+    fg = project.get_feature_store().get_feature_group(name="karachi_aqi_features", version=7)
     
-    # B. Fetch Weather
-    w_res = requests.get(f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units=metric&appid={aqi_key}", timeout=10)
+    # Get New Data
+    new_df = retry(get_data)
+    new_row = new_df.iloc[0].to_dict()
     
-    # C. Check for Errors (Critical Step)
-    if p_res.status_code != 200 or w_res.status_code != 200:
-        # If API fails, Raise an error so the 'retry_operation' can catch it and try again
-        raise ConnectionError(f"API Failed. Status: {p_res.status_code}/{w_res.status_code}")
-        
-    # D. Parse Data (Only happens if status is 200)
-    poll = p_res.json()['list'][0]
-    wea = w_res.json()['main']
-    wind = w_res.json()['wind']
-            
-    # Timezone Handling
-    pk_tz = pytz.timezone('Asia/Karachi')
-    current_dt = datetime.now(pk_tz).replace(tzinfo=None) 
-
-    # E. Build the Row
-    row = {
-        'datetime': current_dt,
-        'aqi': int(poll['main']['aqi']),
-        'humidity': int(wea['humidity']),
-        'pm2_5': float(poll['components']['pm2_5']),
-        'pm10': float(poll['components']['pm10']),
-        'nitrogen_dioxide': float(poll['components']['no2']),
-        'ozone': float(poll['components']['o3']),
-        'sulphor_dioxide': float(poll['components']['so2']),
-        'carbon_monooxide': float(poll['components']['co']),
-        'temp_c': float(wea['temp']),
-        'wind_speed_kph': float(wind['speed'] * 3.6),
-        'precipitation_mm': float(w_res.json().get('rain', {}).get('1h', 0.0)),
-        'year': current_dt.year,
-        'month': current_dt.month,
-        'day': current_dt.day,
-        'hour': current_dt.hour,
-        'day_of_week': current_dt.weekday(),
-        'temp_humid_interaction': float(wea['temp'] * wea['humidity']),
-        'wind_pollution_interaction': float((wind['speed'] * 3.6) * poll['components']['pm2_5']),
-        # IMPORTANT: Initialize these as 0. The calculate_features function will fill them later.
-        'aqi_lag_1': 0,
-        'aqi_roll_max_24h': 0
-    }
-        
-    # F. Return the DataFrame
-    return pd.DataFrame([row])
-# ---------------------------------------------------------
-# 3. CALCULATE FEATURES (LAG)
-# ---------------------------------------------------------
-# ---------------------------------------------------------
-# 3. CALCULATE FEATURES (LAG)
-# ---------------------------------------------------------
-# ─────────────────────────────────────────────────────────────
-# 3. CALCULATE FEATURES (THE SAFE DICTIONARY METHOD)
-# ─────────────────────────────────────────────────────────────
-def calculate_features(fg, new_df):
-    print("📥 Fetching history for lag calculation...")
-    
-    # 1. Convert New Row to Dict
-    new_row_dict = new_df.iloc[0].to_dict()
-    
-    # Remove timezone from new row
-    if isinstance(new_row_dict['datetime'], pd.Timestamp):
-        new_row_dict['datetime'] = new_row_dict['datetime'].replace(tzinfo=None)
-
-    history_records = []
+    # Safe Merge History (Prevents Shape Mismatch)
     try:
-        # 2. Get History
-        history_df = fg.read(read_options={"use_arrow_flight": False}).tail(48)
-        
-        if not history_df.empty:
-            # Force datetime naive
-            if 'datetime' in history_df.columns:
-                history_df['datetime'] = pd.to_datetime(history_df['datetime']).dt.tz_localize(None)
-            
-            # Select ONLY matching columns
-            common_cols = [c for c in new_df.columns if c in history_df.columns]
-            history_records = history_df[common_cols].to_dict('records')
-            
-    except Exception as e:
-        print(f"⚠️ Warning: Could not read history ({e}). Using new data only.")
+        hist_df = fg.read(read_options={"use_arrow_flight": False}).tail(48)
+        if not hist_df.empty:
+            hist_df['datetime'] = pd.to_datetime(hist_df['datetime']).dt.tz_localize(None)
+            hist_df = hist_df[new_df.columns.intersection(hist_df.columns)] # Align cols
+            data = hist_df.to_dict('records') + [new_row]
+        else: data = [new_row]
+    except: data = [new_row]
 
-    # 3. MERGE LISTS (This prevents shape errors!)
-    full_data_list = history_records + [new_row_dict]
-    
-    # 4. Create Fresh DataFrame
-    combined_df = pd.DataFrame(full_data_list)
-    
-    # 5. Sort & Clean
-    if 'datetime' in combined_df.columns:
-        combined_df['datetime'] = pd.to_datetime(combined_df['datetime'])
-        combined_df = combined_df.sort_values('datetime').reset_index(drop=True)
+    # Calculate Features
+    df = pd.DataFrame(data).sort_values('datetime').reset_index(drop=True)
+    df['aqi_lag_1'] = df['aqi'].shift(1)
+    df['aqi_roll_max_24h'] = df['aqi'].rolling(24, min_periods=1).max()
+    df['aqi_change'] = df['aqi'].diff()
+    df['aqi_pct_change'] = df['aqi'].pct_change()
+    df['target_aqi_24h'] = df['aqi'].shift(-24)
 
-    # 6. Calculate Lags
-    combined_df['aqi_lag_1'] = combined_df['aqi'].shift(1)
-    combined_df['aqi_roll_max_24h'] = combined_df['aqi'].rolling(window=24, min_periods=1).max()
-    
-    print(f"✅ Features Calculated. Total Rows: {len(combined_df)}")
-    
-    # Return ONLY the new row
-    return combined_df.tail(1)
-# ---------------------------------------------------------
-# 4. MAIN EXECUTION
-# ---------------------------------------------------------
+    # Final Clean (Fill NaNs & Cast Types)
+    final_row = df.tail(1).fillna(0)
+    int_cols = ['day_of_week', 'aqi', 'humidity', 'year', 'month', 'day', 'hour']
+    final_row[int_cols] = final_row[int_cols].astype('int64')
+
+    print(f"✅ Uploading AQI: {final_row['aqi'].values[0]}")
+    retry(lambda: fg.insert(final_row, write_options={"wait_for_job": False}))
+    print("✅ Success!")
+
 if __name__ == "__main__":
-    try:
-        print("🚀 Pipeline Started...")
-
-        # A. Login
-        fg = retry_operation(connect_to_hopsworks, operation_name="Hopsworks Login")
-        print("✅ Logged in.")
-
-        # B. Get Data
-        new_df = retry_operation(get_live_weather_data, operation_name="Weather Fetch")
-        print(f"✅ Data Fetched: AQI {new_df['aqi'].values[0]}")
-
-        # C. Feature Engineering
-        final_df = calculate_features(fg, new_df)
-
-        # D. Upload
-        def upload_task():
-            fg.insert(final_df, write_options={"wait_for_job": False})
-        
-        retry_operation(upload_task, max_retries=5, delay=20, operation_name="Upload")
-        print("✅ Data Ingested Successfully!")
-
-    except Exception as e:
-        print(f"❌ PIPELINE CRASHED: {e}")
-        exit(1) # This ensures GitHub sends you an email alert!
+    try: run_pipeline()
+    except Exception as e: 
+        print(f"❌ Error: {e}")
+        exit(1)
