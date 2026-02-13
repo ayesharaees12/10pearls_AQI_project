@@ -39,6 +39,9 @@ def connect_to_hopsworks():
 # ─────────────────────────────────────────────────────────────
 # 2. DATA FETCHER (OPENWEATHERMAP ONLY)
 # ─────────────────────────────────────────────────────────────
+# ---------------------------------------------------------
+# 2. DATA FETCHER (OPENWEATHERMAP ONLY)
+# ---------------------------------------------------------
 def get_live_weather_data():
     lat, lon = 24.8607, 67.0011
     aqi_key = os.getenv('AQI_API_KEY')
@@ -52,18 +55,21 @@ def get_live_weather_data():
     # B. Fetch Weather
     w_res = requests.get(f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units=metric&appid={aqi_key}", timeout=10)
     
-            # Check for 200 OK
+    # C. Check for Errors (Critical Step)
     if p_res.status_code != 200 or w_res.status_code != 200:
-        print(f"⚠️ API Warning: Status {p_res.status_code}/{w_res.status_code}. Retrying...")
+        # If API fails, Raise an error so the 'retry_operation' can catch it and try again
+        raise ConnectionError(f"API Failed. Status: {p_res.status_code}/{w_res.status_code}")
         
-            # ✅ SUCCESS! Parse Data
+    # D. Parse Data (Only happens if status is 200)
     poll = p_res.json()['list'][0]
     wea = w_res.json()['main']
     wind = w_res.json()['wind']
             
+    # Timezone Handling
     pk_tz = pytz.timezone('Asia/Karachi')
-    current_dt = datetime.now(pk_tz).replace(tzinfo=None) # Make naiv
+    current_dt = datetime.now(pk_tz).replace(tzinfo=None) 
 
+    # E. Build the Row
     row = {
         'datetime': current_dt,
         'aqi': int(poll['main']['aqi']),
@@ -83,10 +89,14 @@ def get_live_weather_data():
         'hour': current_dt.hour,
         'day_of_week': current_dt.dayofweek,
         'temp_humid_interaction': float(wea['temp'] * wea['humidity']),
-        'wind_pollution_interaction': float((wind['speed'] * 3.6) * poll['components']['pm2_5'])
+        'wind_pollution_interaction': float((wind['speed'] * 3.6) * poll['components']['pm2_5']),
+        # IMPORTANT: Initialize these as 0. The calculate_features function will fill them later.
+        'aqi_lag_1': 0,
+        'aqi_roll_max_24h': 0
     }
         
-   return pd.DataFrame([row])
+    # F. Return the DataFrame
+    return pd.DataFrame([row])
 def calculate_features(fg, new_df):
     # Read last 48 hours of history to calculate lags
     print("📥 Fetching history for lag calculation...")
