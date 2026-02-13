@@ -100,14 +100,18 @@ def get_live_weather_data():
 # ---------------------------------------------------------
 # 3. CALCULATE FEATURES (LAG)
 # ---------------------------------------------------------
+# ---------------------------------------------------------
+# 3. CALCULATE FEATURES (LAG)
+# ---------------------------------------------------------
 def calculate_features(fg, new_df):
-    # Read last 48 hours of history to calculate lags
     print("📥 Fetching history for lag calculation...")
     
-    # Force new_df datetime to be generic (Naive)
-    new_df['datetime'] = pd.to_datetime(new_df['datetime']).dt.tz_localize(None)
-
+    # 1. Standardize New Data (Remove Timezone)
+    if 'datetime' in new_df.columns:
+        new_df['datetime'] = pd.to_datetime(new_df['datetime']).dt.tz_localize(None)
+    
     try:
+        # Read history
         history_df = fg.read(read_options={"use_arrow_flight": False}).tail(48)
     except Exception as e:
         print(f"⚠️ Warning: Could not read history ({e}). Using new data only.")
@@ -116,16 +120,28 @@ def calculate_features(fg, new_df):
     if history_df.empty:
         return new_df
 
-    # 🛠️ THE FIX: Force History Datetime to be Naive too
-    history_df['datetime'] = pd.to_datetime(history_df['datetime']).dt.tz_localize(None)
+    # 2. Standardize History Data (Remove Timezone)
+    if 'datetime' in history_df.columns:
+        history_df['datetime'] = pd.to_datetime(history_df['datetime']).dt.tz_localize(None)
 
-    # Combine
+    # 🛠️ THE FIX: FORCE COLUMNS TO MATCH
+    # We force history_df to have EXACTLY the same columns as new_df.
+    # Any extra columns in history (the 48 junk ones) are dropped.
+    # Any missing columns are filled with NaN.
+    history_df = history_df.reindex(columns=new_df.columns)
+
+    # 3. Debug Print (To prove it works)
+    print(f"✅ Aligning Data: History shape {history_df.shape} | New shape {new_df.shape}")
+
+    # 4. Combine
     combined_df = pd.concat([history_df, new_df], axis=0, ignore_index=True)
     
-    # Sort
-    combined_df = combined_df.sort_values('datetime').reset_index(drop=True)
+    # 5. Sort & Clean
+    if 'datetime' in combined_df.columns:
+        combined_df = combined_df.sort_values('datetime').reset_index(drop=True)
 
-    # Calculate Lags
+    # 6. Calculate Lags
+    # (Use forward fill 'ffill' to handle any NaNs created by reindexing)
     combined_df['aqi_lag_1'] = combined_df['aqi'].shift(1)
     combined_df['aqi_roll_max_24h'] = combined_df['aqi'].rolling(window=24, min_periods=1).max()
     
