@@ -97,17 +97,32 @@ def get_live_weather_data():
         
     # F. Return the DataFrame
     return pd.DataFrame([row])
+# ---------------------------------------------------------
+# 3. CALCULATE FEATURES (LAG)
+# ---------------------------------------------------------
 def calculate_features(fg, new_df):
     # Read last 48 hours of history to calculate lags
     print("📥 Fetching history for lag calculation...")
-    history_df = fg.read(read_options={"use_arrow_flight": False}).tail(48)
     
+    # Force new_df datetime to be generic (Naive)
+    new_df['datetime'] = pd.to_datetime(new_df['datetime']).dt.tz_localize(None)
+
+    try:
+        history_df = fg.read(read_options={"use_arrow_flight": False}).tail(48)
+    except Exception as e:
+        print(f"⚠️ Warning: Could not read history ({e}). Using new data only.")
+        return new_df
+
     if history_df.empty:
-        return new_data_df
+        return new_df
+
+    # 🛠️ THE FIX: Force History Datetime to be Naive too
+    history_df['datetime'] = pd.to_datetime(history_df['datetime']).dt.tz_localize(None)
 
     # Combine
     combined_df = pd.concat([history_df, new_df], axis=0, ignore_index=True)
-    combined_df['datetime'] = pd.to_datetime(combined_df['datetime'])
+    
+    # Sort
     combined_df = combined_df.sort_values('datetime').reset_index(drop=True)
 
     # Calculate Lags
