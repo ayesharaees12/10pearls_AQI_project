@@ -87,7 +87,7 @@ def get_live_weather_data():
         'month': current_dt.month,
         'day': current_dt.day,
         'hour': current_dt.hour,
-        'day_of_week': current_dt.dayofweek,
+        'day_of_week': current_dt.weekday(),
         'temp_humid_interaction': float(wea['temp'] * wea['humidity']),
         'wind_pollution_interaction': float((wind['speed'] * 3.6) * poll['components']['pm2_5']),
         # IMPORTANT: Initialize these as 0. The calculate_features function will fill them later.
