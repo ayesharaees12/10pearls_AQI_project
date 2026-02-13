@@ -103,51 +103,55 @@ def get_live_weather_data():
 # ---------------------------------------------------------
 # 3. CALCULATE FEATURES (LAG)
 # ---------------------------------------------------------
+# ─────────────────────────────────────────────────────────────
+# 3. CALCULATE FEATURES (THE SAFE DICTIONARY METHOD)
+# ─────────────────────────────────────────────────────────────
 def calculate_features(fg, new_df):
     print("📥 Fetching history for lag calculation...")
     
-    # 1. Standardize New Data (Remove Timezone)
-    if 'datetime' in new_df.columns:
-        new_df['datetime'] = pd.to_datetime(new_df['datetime']).dt.tz_localize(None)
+    # 1. Convert New Row to Dict
+    new_row_dict = new_df.iloc[0].to_dict()
     
+    # Remove timezone from new row
+    if isinstance(new_row_dict['datetime'], pd.Timestamp):
+        new_row_dict['datetime'] = new_row_dict['datetime'].replace(tzinfo=None)
+
+    history_records = []
     try:
-        # Read history
+        # 2. Get History
         history_df = fg.read(read_options={"use_arrow_flight": False}).tail(48)
+        
+        if not history_df.empty:
+            # Force datetime naive
+            if 'datetime' in history_df.columns:
+                history_df['datetime'] = pd.to_datetime(history_df['datetime']).dt.tz_localize(None)
+            
+            # Select ONLY matching columns
+            common_cols = [c for c in new_df.columns if c in history_df.columns]
+            history_records = history_df[common_cols].to_dict('records')
+            
     except Exception as e:
         print(f"⚠️ Warning: Could not read history ({e}). Using new data only.")
-        return new_df
 
-    if history_df.empty:
-        return new_df
-
-    # 2. Standardize History Data (Remove Timezone)
-    if 'datetime' in history_df.columns:
-        history_df['datetime'] = pd.to_datetime(history_df['datetime']).dt.tz_localize(None)
-
-    # 🛠️ THE FIX: FORCE COLUMNS TO MATCH
-    # We force history_df to have EXACTLY the same columns as new_df.
-    # Any extra columns in history (the 48 junk ones) are dropped.
-    # Any missing columns are filled with NaN.
-    history_df = history_df.reindex(columns=new_df.columns)
-
-    # 3. Debug Print (To prove it works)
-    print(f"✅ Aligning Data: History shape {history_df.shape} | New shape {new_df.shape}")
-
-    # 4. Combine
-    combined_df = pd.concat([history_df, new_df], axis=0, ignore_index=True)
+    # 3. MERGE LISTS (This prevents shape errors!)
+    full_data_list = history_records + [new_row_dict]
+    
+    # 4. Create Fresh DataFrame
+    combined_df = pd.DataFrame(full_data_list)
     
     # 5. Sort & Clean
     if 'datetime' in combined_df.columns:
+        combined_df['datetime'] = pd.to_datetime(combined_df['datetime'])
         combined_df = combined_df.sort_values('datetime').reset_index(drop=True)
 
     # 6. Calculate Lags
-    # (Use forward fill 'ffill' to handle any NaNs created by reindexing)
     combined_df['aqi_lag_1'] = combined_df['aqi'].shift(1)
     combined_df['aqi_roll_max_24h'] = combined_df['aqi'].rolling(window=24, min_periods=1).max()
     
-    # Return ONLY the new row (the last one)
+    print(f"✅ Features Calculated. Total Rows: {len(combined_df)}")
+    
+    # Return ONLY the new row
     return combined_df.tail(1)
-
 # ---------------------------------------------------------
 # 4. MAIN EXECUTION
 # ---------------------------------------------------------
