@@ -253,7 +253,7 @@ else:
 
 current_time = datetime.now()
 current_vals = last_row.copy()
-
+np.random.seed(42)
 # 2. GENERATE FORECAST LOOP
 for i in range(1, 74):
     target_time = current_time + timedelta(hours=i)
@@ -398,3 +398,4 @@ with col1:
     st.plotly_chart(fig_pie, use_container_width=True)
 with col2:
     st.markdown("### **Monthly Report:**\nThis chart summarizes the air quality distribution over the last month.")
+
