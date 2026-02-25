@@ -52,7 +52,7 @@ def run_pipeline():
     print("🚀 Pipeline Started...")
     
     # Login
-    project = hopsworks.login(api_key_value=HW_API_KEY, project="aqi_quality_fs")
+    project = hopsworks.login(api_key_value=HW_API_KEY)
     fg = project.get_feature_store().get_feature_group(name="karachi_aqi_features", version=7)
     
     # Get New Data
