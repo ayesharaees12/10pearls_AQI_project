@@ -1,5 +1,4 @@
-hopsworks==4.2.2
-hopsworks[python]==4.2.2
+hopsworks>=4.4.0
 confluent-kafka
 pandas
 numpy
@@ -16,6 +15,7 @@ streamlit
 pyarrow
 shap
 plotly
+
 
 
 
