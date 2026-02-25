@@ -2,6 +2,8 @@ import os, time, requests, hopsworks
 import pandas as pd
 from datetime import datetime
 import pytz
+import hopsworks
+print("Hopsworks Version:", hopsworks.__version__)
 
 # --- CONFIG ---
 HW_API_KEY = os.getenv("HOPSWORKS_API_KEY")
